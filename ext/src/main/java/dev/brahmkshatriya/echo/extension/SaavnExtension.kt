@@ -9,163 +9,241 @@ import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeedData
 import dev.brahmkshatriya.echo.common.models.ImageHolder.Companion.toImageHolder
 import dev.brahmkshatriya.echo.common.models.NetworkRequest.Companion.toGetRequest
 import dev.brahmkshatriya.echo.common.settings.Setting
-import dev.brahmkshatriya.echo.common.settings.SettingSwitch
 import dev.brahmkshatriya.echo.common.settings.Settings
-import dev.brahmkshatriya.echo.extension.saavn.SaavnApi
-import dev.brahmkshatriya.echo.extension.saavn.SaavnConverter
-import dev.brahmkshatriya.echo.extension.saavn.SaavnQueries
-import dev.brahmkshatriya.echo.extension.saavn.TrendingApi
-import dev.brahmkshatriya.echo.extension.saavn.TrendingConverter
-import dev.brahmkshatriya.echo.extension.saavn.NewReleaseApi
-import dev.brahmkshatriya.echo.extension.saavn.NewReleaseConverter
-import dev.brahmkshatriya.echo.extension.saavn.TrendingAlbumApi
-import dev.brahmkshatriya.echo.extension.saavn.TrendingAlbumConverter
-import dev.brahmkshatriya.echo.extension.saavn.models.SaavnResponse
-import dev.brahmkshatriya.echo.extension.saavn.models.GlobalSearch
-import dev.brahmkshatriya.echo.extension.saavn.models.PagedSearch
-import dev.brahmkshatriya.echo.extension.saavn.models.Song as SaavnSong
-import dev.brahmkshatriya.echo.extension.saavn.models.Album as SaavnAlbum
-import dev.brahmkshatriya.echo.extension.saavn.models.Artist as SaavnArtist
-import dev.brahmkshatriya.echo.extension.saavn.models.Playlist as SaavnPlaylist
-import dev.brahmkshatriya.echo.extension.saavn.models.ArtistSongs
+import dev.brahmkshatriya.echo.extension.MediaItem
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 
 class SaavnExtension : ExtensionClient, 
-    QuickSearchClient, HomeFeedClient, LibraryFeedClient, SearchFeedClient,
-    TrackClient, AlbumClient, ArtistClient, PlaylistClient {
+    QuickSearchClient, SearchFeedClient, HomeFeedClient, LibraryFeedClient,
+    TrackClient, AlbumClient, ArtistClient, PlaylistClient,
+    RadioClient, ShareClient {
 
+    private val api by lazy { JioSaavnApi() }
+    private val parser by lazy { JioSaavnParser() }
+    
+    private lateinit var settings: Settings
+    
     override suspend fun getSettingItems(): List<Setting> {
-        return listOf(
-            SettingSwitch(
-                "show_cover_art_background",
-                "Show Cover Art Background",
-                "Enable cover art as background by default during playback",
-                true
-            )
-        )
+        return emptyList()
     }
-    private lateinit var setting: Settings
+    
     override fun setSettings(settings: Settings) {
-        setting = settings
+        this.settings = settings
     }
-    private val api by lazy { SaavnApi() }
-    private val queries by lazy { SaavnQueries(api) }
-    private val converter by lazy { SaavnConverter(setting) }
-    private val trendingApi by lazy { TrendingApi() }
-    private val trendingConverter by lazy { TrendingConverter() }
-    private val newReleaseApi by lazy { NewReleaseApi() }
-    private val newReleaseConverter by lazy { NewReleaseConverter() }
-    private val trendingAlbumApi by lazy { TrendingAlbumApi() }
-    private val trendingAlbumConverter by lazy { TrendingAlbumConverter() }
 
+    //============= HOME FEED =============
+    
+    override suspend fun loadHomeFeed(): Feed<Shelf> {
+        val tabs = listOf(
+            Tab(id = "hindi", title = "Hindi"),
+            Tab(id = "english", title = "English"),
+            Tab(id = "punjabi", title = "Punjabi"),
+            Tab(id = "tamil", title = "Tamil"),
+            Tab(id = "telugu", title = "Telugu"),
+            Tab(id = "marathi", title = "Marathi"),
+            Tab(id = "gujarati", title = "Gujarati"),
+            Tab(id = "bengali", title = "Bengali"),
+            Tab(id = "kannada", title = "Kannada"),
+            Tab(id = "bhojpuri", title = "Bhojpuri"),
+            Tab(id = "malayalam", title = "Malayalam"),
+            Tab(id = "urdu", title = "Urdu")
+        )
+        
+        return Feed(tabs) { tab ->
+            try {
+                val language = tab?.id ?: "hindi"
+                val response = api.getHomeData(language)
+                val homeData = parser.parseHomeData(response) 
+                
+                if (homeData == null) {
+                    return@Feed emptyList<Shelf>().toFeedData()
+                }
+                
+                val shelves = mutableListOf<Shelf>()
+                if (homeData.nowTrending.isNotEmpty()) {
+                    val trendingItems = homeData.nowTrending.map { mediaItem ->
+                        when (mediaItem) {
+                            is MediaItem.Song -> songResultToTrack(mediaItem.data)
+                            is MediaItem.Album -> albumResultToAlbum(mediaItem.data)
+                            is MediaItem.Playlist -> playlistResultToPlaylist(mediaItem.data)
+                        }
+                    }
+                    shelves.add(Shelf.Lists.Items(
+                        id = "now_trending",
+                        title = "Now Trending",
+                        list = trendingItems,
+                        subtitle = "Popular content right now"
+                    ))
+                }
+                if (homeData.topPlaylists.isNotEmpty()) {
+                    shelves.add(Shelf.Lists.Items(
+                        id = "top_playlists",
+                        title = "Top Playlists",
+                        list = homeData.topPlaylists.map { playlistResultToPlaylist(it) },
+                        subtitle = "Curated playlists for you"
+                    ))
+                }
+
+                if (homeData.newAlbums.isNotEmpty()) {
+                    val newAlbumItems = homeData.newAlbums.map { mediaItem ->
+                        when (mediaItem) {
+                            is MediaItem.Album -> albumResultToAlbum(mediaItem.data)
+                            is MediaItem.Song -> songResultToTrack(mediaItem.data)
+                            is MediaItem.Playlist -> playlistResultToPlaylist(mediaItem.data)
+                        }
+                    }
+                    shelves.add(Shelf.Lists.Items(
+                        id = "new_albums",
+                        title = "New Albums",
+                        list = newAlbumItems,
+                        subtitle = "Latest releases"
+                    ))
+                }
+
+                if (homeData.topCharts.isNotEmpty()) {
+                    shelves.add(Shelf.Lists.Items(
+                        id = "top_charts",
+                        title = "Top Charts",
+                        list = homeData.topCharts.map { playlistResultToPlaylist(it) },
+                        subtitle = "Trending charts"
+                    ))
+                }
+                
+                shelves.toFeedData()
+            } catch (e: Exception) {
+                println("DEBUG: Failed to load home feed for tab ${tab?.id}: ${e.message}")
+                e.printStackTrace()
+                emptyList<Shelf>().toFeedData()
+            }
+        }
+    }
+
+    //============= QUICK SEARCH =============
+    
     override suspend fun quickSearch(query: String): List<QuickSearchItem> {
-        if (query.isBlank()) return emptyList()   
+        if (query.isBlank()) return emptyList()
+        
         return try {
-            val response = queries.globalSearch(query)
-            if (!response.json.success) return emptyList()
+            val response = api.searchAll(query, page = 1, limit = 10)
+            val results = parser.parseSearchAll(response)
             
-            val searchResults = response.json.data as GlobalSearch
-            val items = mutableListOf<QuickSearchItem>() 
-            items.addAll(searchResults.songs.results.map { 
-                QuickSearchItem.Media(converter.toTrack(it), false) 
-            })
-            items.addAll(searchResults.albums.results.map { 
-                QuickSearchItem.Media(converter.toAlbum(it), false) 
-            }) 
-            items.addAll(searchResults.artists.results.map { 
-                QuickSearchItem.Media(converter.toArtist(it), false) 
-            })
-            items.addAll(searchResults.playlists.results.map { 
-                QuickSearchItem.Media(converter.toPlaylist(it), false) 
-            })
-            items.take(10)
+            val items = mutableListOf<QuickSearchItem>()
+            results.songs.take(3).forEach { song ->
+                items.add(QuickSearchItem.Media(songResultToTrack(song), false))
+            }
+
+            results.albums.take(3).forEach { album ->
+                items.add(QuickSearchItem.Media(albumResultToAlbum(album), false))
+            }
+
+            results.artists.take(2).forEach { artist ->
+                items.add(QuickSearchItem.Media(artistResultToArtist(artist), false))
+            }
+
+            results.playlists.take(2).forEach { playlist ->
+                items.add(QuickSearchItem.Media(playlistResultToPlaylist(playlist), false))
+            }
+            
+            items
         } catch (e: Exception) {
             println("DEBUG: Quick search failed: ${e.message}")
+            e.printStackTrace()
             emptyList()
         }
     }
+    
     override suspend fun deleteQuickSearch(item: QuickSearchItem) {
+        //Not implemented - search history not stored
     }
-        override suspend fun loadSearchFeed(query: String): Feed<Shelf> {
+
+    //============= SEARCH FEED =============
+    
+    override suspend fun loadSearchFeed(query: String): Feed<Shelf> {
         if (query.isBlank()) {
             return emptyList<Shelf>().toFeed()
         }
+        
         return coroutineScope {
             val songsDeferred = async { 
-                try { queries.searchSongs(query, 0, 10) } 
-                catch (e: Exception) { 
+                try { 
+                    val response = api.searchSongs(query, page = 1, limit = 10)
+                    parser.parseSongSearchResults(response)
+                } catch (e: Exception) { 
                     println("DEBUG: Songs search failed: ${e.message}")
-                    null 
+                    emptyList() 
                 }
             }
+            
             val albumsDeferred = async { 
-                try { queries.searchAlbums(query, 0, 10) } 
-                catch (e: Exception) { 
+                try { 
+                    val response = api.searchAlbums(query, page = 1, limit = 10)
+                    parser.parseAlbumSearchResults(response)
+                } catch (e: Exception) { 
                     println("DEBUG: Albums search failed: ${e.message}")
-                    null 
+                    emptyList() 
                 }
             }
+            
             val artistsDeferred = async { 
-                try { queries.searchArtists(query, 0, 10) } 
-                catch (e: Exception) { 
+                try { 
+                    val response = api.searchArtists(query, page = 1, limit = 10)
+                    parser.parseArtistSearchResults(response)
+                } catch (e: Exception) { 
                     println("DEBUG: Artists search failed: ${e.message}")
-                    null 
+                    emptyList() 
                 }
             }
+            
             val playlistsDeferred = async { 
-                try { queries.searchPlaylists(query, 0, 10) } 
-                catch (e: Exception) { 
+                try { 
+                    val response = api.searchPlaylists(query, page = 1, limit = 10)
+                    parser.parsePlaylistSearchResults(response)
+                } catch (e: Exception) { 
                     println("DEBUG: Playlists search failed: ${e.message}")
-                    null 
+                    emptyList() 
                 }
             }
-
-            val (songsResponse, albumsResponse, artistsResponse, playlistsResponse) = awaitAll(
-                songsDeferred, albumsDeferred, artistsDeferred, playlistsDeferred
-            )
+            
+            val songs = songsDeferred.await()
+            val albums = albumsDeferred.await()
+            val artists = artistsDeferred.await()
+            val playlists = playlistsDeferred.await()
+            
             val shelves = mutableListOf<Shelf>()
-            songsResponse?.json?.data?.let { songsData ->
-                val pagedSearch = songsData as? PagedSearch<SaavnSong>
-                pagedSearch?.let {
-                    shelves.add(Shelf.Lists.Tracks(
-                        id = "search_songs",
-                        title = "Songs",
-                        list = it.results.map { song -> converter.toTrack(song) }
-                    ))
-                }
+            
+            if (songs.isNotEmpty()) {
+                shelves.add(Shelf.Lists.Tracks(
+                    id = "search_songs",
+                    title = "Songs",
+                    list = songs.map { songResultToTrack(it) }
+                ))
             }
-            albumsResponse?.json?.data?.let { albumsData ->
-                val pagedSearch = albumsData as? PagedSearch<SaavnAlbum>
-                pagedSearch?.let {
-                    shelves.add(Shelf.Lists.Items(
-                        id = "search_albums",
-                        title = "Albums",
-                        list = it.results.map { album -> converter.toAlbum(album) }
-                    ))
-                }
+            
+            if (albums.isNotEmpty()) {
+                shelves.add(Shelf.Lists.Items(
+                    id = "search_albums",
+                    title = "Albums",
+                    list = albums.map { albumResultToAlbum(it) }
+                ))
             }
-            artistsResponse?.json?.data?.let { artistsData ->
-                val pagedSearch = artistsData as? PagedSearch<SaavnArtist>
-                pagedSearch?.let {
-                    shelves.add(Shelf.Lists.Items(
-                        id = "search_artists",
-                        title = "Artists",
-                        list = it.results.map { artist -> converter.toArtist(artist) }
-                    ))
-                }
+            
+            if (artists.isNotEmpty()) {
+                shelves.add(Shelf.Lists.Items(
+                    id = "search_artists",
+                    title = "Artists",
+                    list = artists.map { artistResultToArtist(it) }
+                ))
             }
-            playlistsResponse?.json?.data?.let { playlistsData ->
-                val pagedSearch = playlistsData as? PagedSearch<SaavnPlaylist>
-                pagedSearch?.let {
-                    shelves.add(Shelf.Lists.Items(
-                        id = "search_playlists",
-                        title = "Playlists",
-                        list = it.results.map { playlist -> converter.toPlaylist(playlist) }
-                    ))
-                }
+            
+            if (playlists.isNotEmpty()) {
+                shelves.add(Shelf.Lists.Items(
+                    id = "search_playlists",
+                    title = "Playlists",
+                    list = playlists.map { playlistResultToPlaylist(it) }
+                ))
             }
+            
             val tabs = listOf(
                 Tab("all", "All"),
                 Tab("songs", "Songs"),
@@ -173,236 +251,534 @@ class SaavnExtension : ExtensionClient,
                 Tab("artists", "Artists"),
                 Tab("playlists", "Playlists")
             )
+            
             Feed(tabs) { tab ->
                 when (tab?.id) {
-                    "songs" -> PagedData.Continuous { continuation ->
-                        val page = (continuation as? String)?.toIntOrNull() ?: 0
-                        try {
-                            val response = queries.searchSongs(query, page, 20)
-                            val data = response.json.data as? PagedSearch<SaavnSong> 
-                                ?: return@Continuous Page(emptyList<Shelf>(), null)
-                            Page(
-                                listOf(Shelf.Lists.Tracks(
-                                    id = "search_songs_tab",
-                                    title = "Songs",
-                                    list = data.results.map { converter.toTrack(it) }
-                                )),
-                                if (data.total > data.start + data.results.size) (page + 1).toString() else null
-                            )
-                        } catch (e: Exception) {
-                            println("DEBUG: Songs tab pagination failed: ${e.message}")
-                            Page(emptyList<Shelf>(), null)
-                        }
-                    }.toFeedData() 
-                    "albums" -> PagedData.Continuous { continuation ->
-                        val page = (continuation as? String)?.toIntOrNull() ?: 0
-                        try {
-                            val response = queries.searchAlbums(query, page, 20)
-                            val data = response.json.data as? PagedSearch<SaavnAlbum> 
-                                ?: return@Continuous Page(emptyList<Shelf>(), null)
-                            Page(
-                                listOf(Shelf.Lists.Items(
-                                    id = "search_albums_tab",
-                                    title = "Albums",
-                                    list = data.results.map { converter.toAlbum(it) }
-                                )),
-                                if (data.total > data.start + data.results.size) (page + 1).toString() else null
-                            )
-                        } catch (e: Exception) {
-                            println("DEBUG: Albums tab pagination failed: ${e.message}")
-                            Page(emptyList<Shelf>(), null)
-                        }
-                    }.toFeedData()            
-                    "artists" -> PagedData.Continuous { continuation ->
-                        val page = (continuation as? String)?.toIntOrNull() ?: 0
-                        try {
-                            val response = queries.searchArtists(query, page, 20)
-                            val data = response.json.data as? PagedSearch<SaavnArtist> 
-                                ?: return@Continuous Page(emptyList<Shelf>(), null)
-                            Page(
-                                listOf(Shelf.Lists.Items(
-                                    id = "search_artists_tab",
-                                    title = "Artists",
-                                    list = data.results.map { converter.toArtist(it) }
-                                )),
-                                if (data.total > data.start + data.results.size) (page + 1).toString() else null
-                            )
-                        } catch (e: Exception) {
-                            println("DEBUG: Artists tab pagination failed: ${e.message}")
-                            Page(emptyList<Shelf>(), null)
-                        }
-                    }.toFeedData() 
-                    "playlists" -> PagedData.Continuous { continuation ->
-                        val page = (continuation as? String)?.toIntOrNull() ?: 0
-                        try {
-                            val response = queries.searchPlaylists(query, page, 20)
-                            val data = response.json.data as? PagedSearch<SaavnPlaylist> 
-                                ?: return@Continuous Page(emptyList<Shelf>(), null)
-                            Page(
-                                listOf(Shelf.Lists.Items(
-                                    id = "search_playlists_tab",
-                                    title = "Playlists",
-                                    list = data.results.map { playlist -> converter.toPlaylist(playlist) }
-                                )),
-                                if (data.total > data.start + data.results.size) (page + 1).toString() else null
-                            )
-                        } catch (e: Exception) {
-                            println("DEBUG: Playlists tab pagination failed: ${e.message}")
-                            Page(emptyList<Shelf>(), null)
-                        }
-                    }.toFeedData()  
+                    "songs" -> createSongsFeed(query).toFeedData()
+                    "albums" -> createAlbumsFeed(query).toFeedData()
+                    "artists" -> createArtistsFeed(query).toFeedData()
+                    "playlists" -> createPlaylistsFeed(query).toFeedData()
                     else -> PagedData.Single { shelves }.toFeedData()
                 }
             }
         }
     }
-    override suspend fun loadHomeFeed(): Feed<Shelf> {
-        println("DEBUG: loadHomeFeed() called - Loading new releases, top artists, and trending albums")
-        
-        return try {
-            val shelves = mutableListOf<Shelf>()
-            try {
-                val newReleases = newReleaseApi.getNewReleases()
-                println("DEBUG: Received ${newReleases.size} new releases")
-                
-                if (newReleases.isNotEmpty()) {
-                    val releaseList = newReleases.take(15).mapNotNull { release ->
-                        try {
-                            println("DEBUG: Converting release: ${release.name}")
-                            newReleaseConverter.toTrack(release)
-                        } catch (e: Exception) {
-                            println("DEBUG: Failed to convert release ${release.name}: ${e.message}")
-                            null
-                        }
-                    }             
-                    if (releaseList.isNotEmpty()) {
-                        shelves.add(Shelf.Lists.Tracks(
-                            id = "trending_releases",
-                            title = "Trending Release",
-                            list = releaseList
-                        ))
-                        println("DEBUG: Added trending releases shelf with ${releaseList.size} tracks")
-                    }
-                }
-            } catch (e: Exception) {
-                println("DEBUG: Error loading new releases: ${e.message}")
-            }
-            try {
-                val topArtistsResponse = trendingApi.getTopArtists()
-                
-                if (topArtistsResponse.status != "Success") {
-                    println("DEBUG: Top Artists API error: ${topArtistsResponse.message}")
-                } else {
-                    val topArtists = topArtistsResponse.data
-                    println("DEBUG: Received ${topArtists.size} top artists")
-                    
-                    if (topArtists.isNotEmpty()) {
-                        val artistList = topArtists.take(20).mapNotNull { artist ->
-                            try {
-                                println("DEBUG: Converting artist: ${artist.name}")
-                                trendingConverter.toArtist(artist)
-                            } catch (e: Exception) {
-                                println("DEBUG: Failed to convert artist ${artist.name}: ${e.message}")
-                                null
-                            }
-                        }          
-                        if (artistList.isNotEmpty()) {
-                            shelves.add(Shelf.Lists.Items(
-                                id = "top_artists",
-                                title = "Top Artists",
-                                list = artistList
-                            ))
-                            println("DEBUG: Added top artists shelf with ${artistList.size} artists")
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                println("DEBUG: Error loading top artists: ${e.message}")
-            }
-            try {
-                val trendingAlbums = trendingAlbumApi.getTrendingAlbums()
-                println("DEBUG: Received ${trendingAlbums.size} trending albums")
-                
-                if (trendingAlbums.isNotEmpty()) {
-                    val albumList = trendingAlbums.take(20).mapNotNull { album ->
-                        try {
-                            println("DEBUG: Converting album: ${album.name}")
-                            trendingAlbumConverter.toAlbum(album)
-                        } catch (e: Exception) {
-                            println("DEBUG: Failed to convert album ${album.name}: ${e.message}")
-                            null
-                        }
-                    }                   
-                    if (albumList.isNotEmpty()) {
-                        shelves.add(Shelf.Lists.Items(
-                            id = "trending_albums",
-                            title = "Trending Albums",
-                            list = albumList
-                        ))
-                        println("DEBUG: Added trending albums shelf with ${albumList.size} albums")
-                    }
-                }
-            } catch (e: Exception) {
-                println("DEBUG: Error loading trending albums: ${e.message}")
-            }
-            try {
-                val topArtistsResponse = trendingApi.getTopArtists()  
-                if (topArtistsResponse.status == "Success") {
-                    val topArtists = topArtistsResponse.data     
-                    val mostFollowed = topArtists
-                        .sortedByDescending { it.follower_count }
-                        .take(10)
-                        .mapNotNull { artist ->
-                            try {
-                                trendingConverter.toArtist(artist)
-                            } catch (e: Exception) {
-                                println("DEBUG: Failed to convert most followed artist ${artist.name}: ${e.message}")
-                                null
-                            }
-                        }      
-                    if (mostFollowed.isNotEmpty()) {
-                        shelves.add(Shelf.Lists.Items(
-                            id = "most_followed_artists",
-                            title = "Most Followed Artists",
-                            list = mostFollowed
-                        ))
-                        println("DEBUG: Added most followed artists shelf with ${mostFollowed.size} artists")
-                    }
-                }
-            } catch (e: Exception) {
-                println("DEBUG: Error loading most followed artists: ${e.message}")
-            }
-
-            println("DEBUG: Created ${shelves.size} shelves total")
+    
+    private fun createSongsFeed(query: String) = PagedData.Continuous { continuation ->
+        val page = (continuation as? String)?.toIntOrNull() ?: 1
+        try {
+            val response = api.searchSongs(query, page = page, limit = 20)
+            val songs = parser.parseSongSearchResults(response)
             
-            if (shelves.isNotEmpty()) {
-                println("DEBUG: Returning feed with ${shelves.size} shelves")
-                shelves.toFeed()
-            } else {
-                println("DEBUG: No shelves created, returning empty shelf")
-                val emptyShelf = Shelf.Lists.Items(
-                    id = "no_content",
-                    title = "No Content Available",
-                    list = emptyList<EchoMediaItem>()
-                )
-                listOf(emptyShelf).toFeed()
-            }   
-        } catch (e: Exception) {
-            println("DEBUG: Unexpected error in loadHomeFeed: ${e.message}")
-            e.printStackTrace()
-            val debugShelf = Shelf.Lists.Items(
-                id = "debug_error",
-                title = "Error: ${e.javaClass.simpleName}",
-                list = emptyList<EchoMediaItem>()
+            Page(
+                listOf(Shelf.Lists.Tracks(
+                    id = "search_songs_tab",
+                    title = "",
+                    list = songs.map { songResultToTrack(it) }
+                )),
+                if (songs.size >= 20) (page + 1).toString() else null
             )
-            listOf(debugShelf).toFeed()
+        } catch (e: Exception) {
+            println("DEBUG: Songs tab pagination failed: ${e.message}")
+            Page(emptyList<Shelf>(), null)
         }
     }
+    
+    private fun createAlbumsFeed(query: String) = PagedData.Continuous { continuation ->
+        val page = (continuation as? String)?.toIntOrNull() ?: 1
+        try {
+            val response = api.searchAlbums(query, page = page, limit = 20)
+            val albums = parser.parseAlbumSearchResults(response)
+            
+            Page(
+                listOf(Shelf.Lists.Items(
+                    id = "search_albums_tab",
+                    title = "",
+                    list = albums.map { albumResultToAlbum(it) }
+                )),
+                if (albums.size >= 20) (page + 1).toString() else null
+            )
+        } catch (e: Exception) {
+            println("DEBUG: Albums tab pagination failed: ${e.message}")
+            Page(emptyList<Shelf>(), null)
+        }
+    }
+    
+    private fun createArtistsFeed(query: String) = PagedData.Continuous { continuation ->
+        val page = (continuation as? String)?.toIntOrNull() ?: 1
+        try {
+            val response = api.searchArtists(query, page = page, limit = 20)
+            val artists = parser.parseArtistSearchResults(response)
+            
+            Page(
+                listOf(Shelf.Lists.Items(
+                    id = "search_artists_tab",
+                    title = "",
+                    list = artists.map { artistResultToArtist(it) }
+                )),
+                if (artists.size >= 20) (page + 1).toString() else null
+            )
+        } catch (e: Exception) {
+            println("DEBUG: Artists tab pagination failed: ${e.message}")
+            Page(emptyList<Shelf>(), null)
+        }
+    }
+    
+    private fun createPlaylistsFeed(query: String) = PagedData.Continuous { continuation ->
+        val page = (continuation as? String)?.toIntOrNull() ?: 1
+        try {
+            val response = api.searchPlaylists(query, page = page, limit = 20)
+            val playlists = parser.parsePlaylistSearchResults(response)
+            
+            Page(
+                listOf(Shelf.Lists.Items(
+                    id = "search_playlists_tab",
+                    title = "",
+                    list = playlists.map { playlistResultToPlaylist(it) }
+                )),
+                if (playlists.size >= 20) (page + 1).toString() else null
+            )
+        } catch (e: Exception) {
+            println("DEBUG: Playlists tab pagination failed: ${e.message}")
+            Page(emptyList<Shelf>(), null)
+        }
+    }
+
+    //============= TRACK CLIENT =============
+    
+    override suspend fun loadTrack(track: Track, isDownload: Boolean): Track {
+        return try {
+            println("DEBUG: Loading track with ID: ${track.id}")
+            val response = api.getSongDetails(track.id)
+            val songDetails = parser.parseSongDetails(response).firstOrNull()
+                ?: throw Exception("Track not found")
+            
+            songDetailToTrack(songDetails)
+        } catch (e: Exception) {
+            println("DEBUG: Failed to load track ${track.id}: ${e.message}")
+            throw Exception("Failed to load track: ${e.message}")
+        }
+    }
+    
+    override suspend fun loadStreamableMedia(
+        streamable: Streamable, 
+        isDownload: Boolean
+    ): Streamable.Media {
+        return when (streamable.type) {
+            Streamable.MediaType.Server -> {
+                println("DEBUG: Loading streamable media")
+                
+                val streamUrls = streamable.extras["streamUrls"] 
+                    ?: throw Exception("No stream URLs found")
+                val urls = parseStreamUrls(streamUrls)
+
+                val sources = mutableListOf<Streamable.Source.Http>()
+                
+                if (urls["veryHigh"]?.isNotBlank() == true) {
+                    sources.add(Streamable.Source.Http(
+                        request = urls["veryHigh"]!!.toGetRequest(),
+                        type = Streamable.SourceType.Progressive,
+                        quality = 320,
+                        title = "320kbps"
+                    ))
+                }
+                
+                if (urls["high"]?.isNotBlank() == true) {
+                    sources.add(Streamable.Source.Http(
+                        request = urls["high"]!!.toGetRequest(),
+                        type = Streamable.SourceType.Progressive,
+                        quality = 160,
+                        title = "160kbps"
+                    ))
+                }
+                
+                if (urls["medium"]?.isNotBlank() == true) {
+                    sources.add(Streamable.Source.Http(
+                        request = urls["medium"]!!.toGetRequest(),
+                        type = Streamable.SourceType.Progressive,
+                        quality = 96,
+                        title = "96kbps"
+                    ))
+                }
+                
+                if (urls["low"]?.isNotBlank() == true) {
+                    sources.add(Streamable.Source.Http(
+                        request = urls["low"]!!.toGetRequest(),
+                        type = Streamable.SourceType.Progressive,
+                        quality = 48,
+                        title = "48kbps"
+                    ))
+                }
+                
+                if (sources.isEmpty()) {
+                    throw Exception("No valid stream URLs available")
+                }
+                
+                Streamable.Media.Server(sources, false)
+            }
+            Streamable.MediaType.Background -> {
+                throw Exception("Background streamables not supported")
+            }
+            Streamable.MediaType.Subtitle -> {
+                throw Exception("Subtitles not supported")
+            }
+        }
+    }
+    
+    override suspend fun loadFeed(track: Track): Feed<Shelf> {
+        return try {
+            println("DEBUG: Loading related tracks for: ${track.id}")
+
+            try {
+                val stationResponse = api.createSongStation(track.id)
+                val stationId = parser.parseStationId(stationResponse)
+                
+                if (stationId != null) {
+                    val suggestionsResponse = api.getSongSuggestions(stationId, limit = 20)
+                    val songs = parser.parseSongSuggestions(suggestionsResponse)
+                    
+                    if (songs.isNotEmpty()) {
+                        val tracks = songs.map { songResultToTrack(it) }
+                        
+                        return listOf(
+                            Shelf.Lists.Tracks(
+                                id = "similar_tracks",
+                                title = "Similar Tracks",
+                                list = tracks,
+                                subtitle = "You might also like"
+                            )
+                        ).toFeed()
+                    }
+                }
+            } catch (e: Exception) {
+                println("DEBUG: Station-based suggestions failed in loadFeed: ${e.message}")
+            }
+            
+            emptyList<Shelf>().toFeed()
+        } catch (e: Exception) {
+            println("DEBUG: Failed to load similar tracks: ${e.message}")
+            emptyList<Shelf>().toFeed()
+        }
+    }
+
+    //============= ALBUM CLIENT =============
+    
+    override suspend fun loadAlbum(album: Album): Album {
+        return try {
+            println("DEBUG: Loading album with ID: ${album.id}")
+            val response = api.getAlbumDetails(album.id)
+            val albumDetail = parser.parseAlbumDetails(response)
+                ?: throw Exception("Album not found")
+            
+            albumDetailToAlbum(albumDetail)
+        } catch (e: Exception) {
+            println("DEBUG: Failed to load album ${album.id}: ${e.message}")
+            throw Exception("Failed to load album: ${e.message}")
+        }
+    }
+    
+    override suspend fun loadTracks(album: Album): Feed<Track>? {
+        return try {
+            println("DEBUG: Loading tracks for album: ${album.id}")
+            val response = api.getAlbumDetails(album.id)
+            val albumDetail = parser.parseAlbumDetails(response)
+                ?: return null
+            
+            val tracks = albumDetail.songs.map { songDetailToTrack(it) }
+            tracks.toFeed() as Feed<Track>
+        } catch (e: Exception) {
+            println("DEBUG: Failed to load album tracks: ${e.message}")
+            null
+        }
+    }
+    
+    override suspend fun loadFeed(album: Album): Feed<Shelf>? {
+        return null
+    }
+
+    //============= ARTIST CLIENT =============
+    
+    override suspend fun loadArtist(artist: Artist): Artist {
+        return try {
+            println("DEBUG: Loading artist with ID: ${artist.id}")
+            val response = api.getArtistDetails(artist.id, songCount = 10, albumCount = 10)
+            val artistDetail = parser.parseArtistDetails(response)
+                ?: throw Exception("Artist not found")
+            
+            artistDetailToArtist(artistDetail)
+        } catch (e: Exception) {
+            println("DEBUG: Failed to load artist ${artist.id}: ${e.message}")
+            throw Exception("Failed to load artist: ${e.message}")
+        }
+    }
+    
+    override suspend fun loadFeed(artist: Artist): Feed<Shelf> {
+        return try {
+            val response = api.getArtistDetails(artist.id, songCount = 50, albumCount = 50)
+            val artistDetail = parser.parseArtistDetails(response)
+                ?: return emptyList<Shelf>().toFeed()
+            
+            val shelves = mutableListOf<Shelf>()
+            
+            if (artistDetail.topSongs.isNotEmpty()) {
+                shelves.add(Shelf.Lists.Tracks(
+                    id = "artist_top_songs",
+                    title = "Popular Songs",
+                    list = artistDetail.topSongs.map { songDetailToTrack(it) }
+                ))
+            }
+            
+            if (artistDetail.topAlbums.isNotEmpty()) {
+                shelves.add(Shelf.Lists.Items(
+                    id = "artist_albums",
+                    title = "Albums",
+                    list = artistDetail.topAlbums.map { albumResultToAlbum(it) }
+                ))
+            }
+            
+            shelves.toFeed()
+        } catch (e: Exception) {
+            println("DEBUG: Failed to load artist feed: ${e.message}")
+            emptyList<Shelf>().toFeed()
+        }
+    }
+
+    //============= PLAYLIST CLIENT =============
+    
+    override suspend fun loadPlaylist(playlist: Playlist): Playlist {
+        return try {
+            println("DEBUG: Loading playlist with ID: ${playlist.id}")
+            val response = api.getPlaylistDetails(playlist.id)
+            println("DEBUG: Playlist response length: ${response.length}")
+            println("DEBUG: Playlist response preview: ${response.take(500)}")
+            
+            val playlistDetail = parser.parsePlaylistDetails(response)
+                ?: throw Exception("Playlist not found")
+            
+            println("DEBUG: Parsed playlist: ${playlistDetail.title}, songs: ${playlistDetail.songs.size}")
+            playlistDetailToPlaylist(playlistDetail)
+        } catch (e: Exception) {
+            println("DEBUG: Failed to load playlist ${playlist.id}: ${e.message}")
+            e.printStackTrace()
+            throw Exception("Failed to load playlist: ${e.message}")
+        }
+    }
+    
+    override suspend fun loadTracks(playlist: Playlist): Feed<Track> {
+        return try {
+            println("DEBUG: Loading tracks for playlist: ${playlist.id}")
+            val response = api.getPlaylistDetails(playlist.id)
+            val playlistDetail = parser.parsePlaylistDetails(response)
+                ?: return emptyList<Track>().toFeed() as Feed<Track>
+            
+            println("DEBUG: Playlist has ${playlistDetail.songs.size} songs")
+            
+            if (playlistDetail.songs.isEmpty()) {
+                println("DEBUG: Playlist songs list is empty, returning empty feed")
+                return emptyList<Track>().toFeed() as Feed<Track>
+            }
+            
+            val tracks = playlistDetail.songs.map { songDetailToTrack(it) }
+            println("DEBUG: Converted ${tracks.size} songs to tracks")
+            tracks.toFeed() as Feed<Track>
+        } catch (e: Exception) {
+            println("DEBUG: Failed to load playlist tracks: ${e.message}")
+            e.printStackTrace()
+            emptyList<Track>().toFeed() as Feed<Track>
+        }
+    }
+    
+    override suspend fun loadFeed(playlist: Playlist): Feed<Shelf>? {
+        return null
+    }
+    
+    //============= RADIO CLIENT =============
+    
+    override suspend fun radio(item: EchoMediaItem, context: EchoMediaItem?): Radio {
+        return when (item) {
+            is Track -> createRadioFromTrack(item)
+            is Album -> createRadioFromAlbum(item)
+            is Artist -> createRadioFromArtist(item)
+            is Playlist -> createRadioFromPlaylist(item)
+            else -> throw Exception("Radio not supported for this item type")
+        }
+    }
+    
+    override suspend fun loadTracks(radio: Radio): Feed<Track> {
+        val tracksJson = radio.extras["tracks"] ?: return emptyList<Track>().toFeed() as Feed<Track>
+        return try {
+            val trackIds = tracksJson.split(",")
+            val tracks = mutableListOf<Track>()
+            
+            for (id in trackIds) {
+                try {
+                    val response = api.getSongDetails(id)
+                    val songDetail = parser.parseSongDetails(response).firstOrNull()
+                    if (songDetail != null) {
+                        tracks.add(songDetailToTrack(songDetail))
+                    }
+                } catch (e: Exception) {
+                    println("DEBUG: Failed to load track $id for radio: ${e.message}")
+                }
+            }
+            
+            tracks.toFeed() as Feed<Track>
+        } catch (e: Exception) {
+            println("DEBUG: Failed to load radio tracks: ${e.message}")
+            emptyList<Track>().toFeed() as Feed<Track>
+        }
+    }
+    
+    override suspend fun loadRadio(radio: Radio): Radio = radio
+    
+    private suspend fun createRadioFromTrack(track: Track): Radio {
+        return try {
+            println("DEBUG: Creating radio from track: id=${track.id}, title=${track.title}")
+            
+            try {
+                val stationResponse = api.createSongStation(track.id)
+                val stationId = parser.parseStationId(stationResponse)
+                
+                if (stationId != null) {
+                    println("DEBUG: Created station with ID: $stationId")
+        
+                    val suggestionsResponse = api.getSongSuggestions(stationId, limit = 50)
+                    val songs = parser.parseSongSuggestions(suggestionsResponse)
+                    
+                    if (songs.isNotEmpty()) {
+                        println("DEBUG: Successfully got ${songs.size} song suggestions from station")
+                        val trackIds = songs.map { it.id }.joinToString(",")
+                        
+                        return Radio(
+                            id = "radio_${track.id}",
+                            title = "${track.title} Radio",
+                            subtitle = "Similar to ${track.title}",
+                            cover = track.cover,
+                            extras = mapOf("tracks" to trackIds)
+                        )
+                    } else {
+                        println("DEBUG: Station created but no suggestions returned")
+                    }
+                } else {
+                    println("DEBUG: Failed to create station, stationId is null")
+                }
+            } catch (e: Exception) {
+                println("DEBUG: Station-based suggestions failed: ${e.message}, falling back to artist radio")
+            }
+            
+            val artists = track.artists
+            if (artists.isEmpty()) {
+                throw Exception("No artists found for this track")
+            }
+            
+            val primaryArtist = artists.first()
+            println("DEBUG: Creating artist-based radio for: ${primaryArtist.name}")
+            
+            val artistResponse = api.getArtistDetails(primaryArtist.id, songCount = 50, albumCount = 0)
+            val artistDetail = parser.parseArtistDetails(artistResponse)
+                ?: throw Exception("Could not load artist details")
+            
+            if (artistDetail.topSongs.isEmpty()) {
+                throw Exception("Artist has no songs available")
+            }
+            
+            val trackIds = artistDetail.topSongs.map { it.id }.joinToString(",")
+            
+            Radio(
+                id = "radio_${track.id}",
+                title = "${track.title} Radio",
+                subtitle = "Songs by ${primaryArtist.name}",
+                cover = track.cover,
+                extras = mapOf("tracks" to trackIds)
+            )
+        } catch (e: Exception) {
+            println("DEBUG: Failed to create radio from track: ${e.message}")
+            throw Exception("Failed to create radio: ${e.message}")
+        }
+    }
+    
+    private suspend fun createRadioFromAlbum(album: Album): Radio {
+        return try {
+            val response = api.getAlbumDetails(album.id)
+            val albumDetail = parser.parseAlbumDetails(response)
+                ?: throw Exception("Album not found")
+            
+            val trackIds = albumDetail.songs.map { it.id }.joinToString(",")
+            
+            Radio(
+                id = "radio_${album.id}",
+                title = "${album.title} Radio",
+                subtitle = "Songs from ${album.title}",
+                cover = album.cover,
+                extras = mapOf("tracks" to trackIds)
+            )
+        } catch (e: Exception) {
+            println("DEBUG: Failed to create radio from album: ${e.message}")
+            throw Exception("Failed to create radio: ${e.message}")
+        }
+    }
+    
+    private suspend fun createRadioFromArtist(artist: Artist): Radio {
+        return try {
+            val response = api.getArtistDetails(artist.id, songCount = 50, albumCount = 10)
+            val artistDetail = parser.parseArtistDetails(response)
+                ?: throw Exception("Artist not found")
+            
+            val trackIds = artistDetail.topSongs.map { it.id }.joinToString(",")
+            
+            Radio(
+                id = "radio_${artist.id}",
+                title = "${artist.name} Radio",
+                subtitle = "Top songs by ${artist.name}",
+                cover = artist.cover,
+                extras = mapOf("tracks" to trackIds)
+            )
+        } catch (e: Exception) {
+            println("DEBUG: Failed to create radio from artist: ${e.message}")
+            throw Exception("Failed to create radio: ${e.message}")
+        }
+    }
+    
+    private suspend fun createRadioFromPlaylist(playlist: Playlist): Radio {
+        return try {
+            val response = api.getPlaylistDetails(playlist.id)
+            val playlistDetail = parser.parsePlaylistDetails(response)
+                ?: throw Exception("Playlist not found")
+            
+            val trackIds = playlistDetail.songs.map { it.id }.joinToString(",")
+            
+            Radio(
+                id = "radio_${playlist.id}",
+                title = "${playlist.title} Radio",
+                subtitle = "Songs from ${playlist.title}",
+                cover = playlist.cover,
+                extras = mapOf("tracks" to trackIds)
+            )
+        } catch (e: Exception) {
+            println("DEBUG: Failed to create radio from playlist: ${e.message}")
+            throw Exception("Failed to create radio: ${e.message}")
+        }
+    }
+    
+    //============= SHARE CLIENT =============
+    
+    override suspend fun onShare(item: EchoMediaItem): String {
+        return when (item) {
+            is Track -> item.extras["permaUrl"] ?: "https://www.jiosaavn.com/song/${item.id}"
+            is Album -> item.extras["permaUrl"] ?: "https://www.jiosaavn.com/album/${item.id}"
+            is Artist -> item.extras["permaUrl"] ?: "https://www.jiosaavn.com/artist/${item.id}"
+            is Playlist -> item.extras["permaUrl"] ?: "https://www.jiosaavn.com/featured/${item.id}"
+            else -> throw Exception("Sharing not supported for this item type")
+        }
+    }
+    
+    //============= LIBRARY FEED CLIENT =============
+    
     override suspend fun loadLibraryFeed(): Feed<Shelf> {
         println("DEBUG: loadLibraryFeed() called - Creating library feed")
         
         return try {
-            val shelves = mutableListOf<Shelf>()  
+            val shelves = mutableListOf<Shelf>()
             val favoritesCategory = Shelf.Category(
                 id = "favorites",
                 title = "Favorites",
@@ -411,6 +787,7 @@ class SaavnExtension : ExtensionClient,
                 extras = mapOf("type" to "favorites")
             )
             shelves.add(favoritesCategory)
+            
             val recentlyPlayedCategory = Shelf.Category(
                 id = "recently_played",
                 title = "Recently Played",
@@ -419,6 +796,7 @@ class SaavnExtension : ExtensionClient,
                 extras = mapOf("type" to "recently_played")
             )
             shelves.add(recentlyPlayedCategory)
+            
             val playlistsCategory = Shelf.Category(
                 id = "playlists",
                 title = "My Playlists",
@@ -426,42 +804,11 @@ class SaavnExtension : ExtensionClient,
                 feed = null,
                 extras = mapOf("type" to "playlists")
             )
-            shelves.add(playlistsCategory) 
-            try {
-                val newReleases = newReleaseApi.getNewReleases()
-                if (newReleases.isNotEmpty()) {
-                    val recommendedTracks = newReleases.take(10).mapNotNull { release ->
-                        try {
-                            newReleaseConverter.toTrack(release)
-                        } catch (e: Exception) {
-                            println("DEBUG: Failed to convert recommended track ${release.name}: ${e.message}")
-                            null
-                        }
-                    }    
-                    if (recommendedTracks.isNotEmpty()) {
-                        shelves.add(Shelf.Lists.Tracks(
-                            id = "library_recommended",
-                            title = "Recommended for You",
-                            subtitle = "Based on trending music",
-                            list = recommendedTracks
-                        ))
-                    }
-                }
-            } catch (e: Exception) {
-                println("DEBUG: Error loading recommended tracks for library: ${e.message}")
-            }  
-            println("DEBUG: Created library feed with ${shelves.size} shelves")
-            if (shelves.isNotEmpty()) {
-                shelves.toFeed()
-            } else {
-                val emptyShelf = Shelf.Category(
-                    id = "empty_library",
-                    title = "Your Library",
-                    subtitle = "No items in your library yet",
-                    feed = null
-                )
-                listOf(emptyShelf).toFeed()
-            }
+            shelves.add(playlistsCategory)
+            
+            println("DEBUG: Created library feed with ${shelves.size} category shelves")
+            shelves.toFeed()
+            
         } catch (e: Exception) {
             println("DEBUG: Error in loadLibraryFeed: ${e.message}")
             e.printStackTrace()
@@ -475,261 +822,5 @@ class SaavnExtension : ExtensionClient,
             listOf(errorShelf).toFeed()
         }
     }
-    override suspend fun loadTrack(track: Track, isDownload: Boolean): Track {
-        return try {
-            println("DEBUG: Loading track with ID: ${track.id}")
-            val response = queries.getSong(track.id)
-            val song = response.json.data.firstOrNull() as? SaavnSong
-                ?: throw Exception("Track not found")
-            
-            val fullTrack = converter.toTrack(song)
-            
-            if (track.extras["isNewRelease"] == "true") {
-                fullTrack.copy(
-                    title = track.title,
-                    cover = track.cover ?: fullTrack.cover,
-                    background = track.background ?: fullTrack.background,
-                    isExplicit = track.isExplicit || fullTrack.isExplicit,
-                    extras = track.extras + fullTrack.extras
-                )
-            } else {
-                fullTrack.copy(
-                    isExplicit = track.isExplicit,
-                    extras = track.extras + fullTrack.extras
-                )
-            }
-        } catch (e: Exception) {
-            println("DEBUG: Failed to load track ${track.id}: ${e.message}")
-            throw Exception("Failed to load track: ${e.message}")
-        }
-    }
-    override suspend fun loadStreamableMedia(
-        streamable: Streamable, 
-        isDownload: Boolean
-    ): Streamable.Media {
-        return when (streamable.type) {
-            Streamable.MediaType.Server -> {
-                println("DEBUG: Loading streamable media with integrated cover art")
-                
-                val downloadUrls = extractDownloadUrls(streamable.extras)
-                    ?: throw Exception("No download URLs found in streamable extras")
-                val qualityUrl = downloadUrls["320kbps"] 
-                    ?: downloadUrls["160kbps"] 
-                    ?: downloadUrls["96kbps"]
-                    ?: downloadUrls["48kbps"]
-                    ?: downloadUrls["12kbps"]
-                    ?: throw Exception("No suitable stream quality found")
-                if (qualityUrl.isBlank()) {
-                    throw Exception("Selected URL is blank")
-                }  
-                val quality = when {
-                    qualityUrl.contains("320") -> 320
-                    qualityUrl.contains("160") -> 160
-                    qualityUrl.contains("96") -> 96
-                    qualityUrl.contains("48") -> 48
-                    qualityUrl.contains("12") -> 12
-                    else -> 128
-                } 
-                val httpSource = Streamable.Source.Http(
-                    request = qualityUrl.toGetRequest(),
-                    type = Streamable.SourceType.Progressive,
-                    quality = quality,
-                    title = "${quality}kbps"
-                )  
-                Streamable.Media.Server(listOf(httpSource), false)
-            }
-            Streamable.MediaType.Background -> {
-                throw Exception("Background streamables not supported for audio content. Cover art is handled by server streamable.")
-            }
-            Streamable.MediaType.Subtitle -> {
-                throw Exception("Subtitles not supported")
-            }
-        }
-    }
-    private fun extractDownloadUrls(extras: Map<String, String>): Map<String, String>? {
-        val downloadUrlsValue = extras["downloadUrls"] ?: return null
-        val downloadUrlsString = downloadUrlsValue.toString().trim()
-        
-        if (!downloadUrlsString.startsWith("{") || !downloadUrlsString.endsWith("}")) {
-            return null
-        }     
-        val content = downloadUrlsString.substring(1, downloadUrlsString.length - 1).trim()
-        if (content.isEmpty()) return null   
-        val result = mutableMapOf<String, String>()
-        val pairs = content.split(",")
-        for (pair in pairs) {
-            val trimmedPair = pair.trim()
-            val equalIndex = trimmedPair.indexOf('=')
-            if (equalIndex != -1) {
-                val key = trimmedPair.substring(0, equalIndex).trim()
-                val value = trimmedPair.substring(equalIndex + 1).trim()
-                if (key.isNotBlank() && value.isNotBlank()) {
-                    result[key] = value
-                }
-            }
-        }   
-        return if (result.isNotEmpty()) result else null
-    }
-    override suspend fun loadFeed(track: Track): Feed<Shelf> {
-        return emptyList<Shelf>().toFeed()
-    }
-    override suspend fun loadAlbum(album: Album): Album {
-        return try {
-            println("DEBUG: Loading album with ID: ${album.id}")
-            val response = queries.getAlbum(album.id)
-            val saavnAlbum = response.json.data as SaavnAlbum
-            val fullAlbum = converter.toAlbum(saavnAlbum)   
-            if (album.extras["isTrendingAlbum"] == "true") {
-                fullAlbum.copy(
-                    title = album.title,
-                    cover = album.cover ?: fullAlbum.cover,
-                    background = album.background ?: fullAlbum.background,
-                    isExplicit = album.isExplicit || fullAlbum.isExplicit,
-                    subtitle = album.subtitle ?: fullAlbum.subtitle,
-                    extras = album.extras + fullAlbum.extras
-                )
-            } else {
-                fullAlbum
-            }
-        } catch (e: Exception) {
-            println("DEBUG: Failed to load album ${album.id}: ${e.message}")
-            throw Exception("Failed to load album: ${e.message}")
-        }
-    }
-    override suspend fun loadTracks(album: Album): Feed<Track>? {
-        return try {
-            println("DEBUG: Loading tracks for album: ${album.id}")
-            val response = queries.getAlbum(album.id)
-            val saavnAlbum = response.json.data as SaavnAlbum
-            val tracks = saavnAlbum.songs?.map { converter.toTrack(it as SaavnSong) } ?: emptyList()
-            
-            println("DEBUG: Loaded ${tracks.size} tracks for album ${album.id}")
-            tracks.toFeed() as Feed<Track>
-        } catch (e: Exception) {
-            println("DEBUG: Failed to load tracks for album ${album.id}: ${e.message}")
-            null
-        }
-    }
-    override suspend fun loadFeed(album: Album): Feed<Shelf>? {
-        return null
-    }
-    override suspend fun loadArtist(artist: Artist): Artist {
-        return try {
-            println("DEBUG: Loading artist with ID: ${artist.id}")
-            val response = queries.getArtist(artist.id)
-            val saavnArtist = response.json.data as SaavnArtist
-            converter.toArtist(saavnArtist)
-        } catch (e: Exception) {
-            println("DEBUG: Failed to load artist ${artist.id}: ${e.message}")
-            throw Exception("Failed to load artist: ${e.message}")
-        }
-    }
-    override suspend fun loadFeed(artist: Artist): Feed<Shelf> {
-        return try {
-            val artistResponse = queries.getArtist(artist.id)
-            val saavnArtist = artistResponse.json.data as SaavnArtist
-            
-            val shelves = mutableListOf<Shelf>()
-            
-            saavnArtist.topSongs?.let { topSongs ->
-                if (topSongs.isNotEmpty()) {
-                    shelves.add(Shelf.Lists.Tracks(
-                        id = "artist_top_songs",
-                        title = "Popular Songs",
-                        list = topSongs.map { converter.toTrack(it) }
-                    ))
-                }
-            }            
-            saavnArtist.topAlbums?.let { topAlbums ->
-                if (topAlbums.isNotEmpty()) {
-                    shelves.add(Shelf.Lists.Items(
-                        id = "artist_albums",
-                        title = "Albums",
-                        list = topAlbums.map { converter.toAlbum(it) }
-                    ))
-                }
-            }
-            saavnArtist.singles?.let { singles ->
-                if (singles.isNotEmpty()) {
-                    shelves.add(Shelf.Lists.Tracks(
-                        id = "artist_singles",
-                        title = "Singles",
-                        list = singles.map { converter.toTrack(it) }
-                    ))
-                }
-            }
-            if (shelves.isEmpty()) {
-                try {
-                    val songsResponse = queries.getArtistSongs(artist.id, 0, "popularity", "desc")
-                    val artistSongs = songsResponse.json.data as ArtistSongs
-                    if (artistSongs.songs.isNotEmpty()) {
-                        shelves.add(Shelf.Lists.Tracks(
-                            id = "artist_all_songs",
-                            title = "Songs",
-                            list = artistSongs.songs.take(20).map { converter.toTrack(it) }
-                        ))
-                    }
-                } catch (e: Exception) {
-                    println("DEBUG: Failed to load artist songs: ${e.message}")
-                }
-            }    
-            shelves.toFeed()
-        } catch (e: Exception) {
-            println("DEBUG: Failed to load artist feed: ${e.message}")
-            emptyList<Shelf>().toFeed()
-        }
-    }
-    override suspend fun loadPlaylist(playlist: Playlist): Playlist {
-        return try {
-            println("DEBUG: Loading playlist with ID: ${playlist.id}")
-            val response = queries.getPlaylist(playlist.id)
-            val saavnPlaylist = response.json.data as SaavnPlaylist
-            converter.toPlaylist(saavnPlaylist)
-        } catch (e: Exception) {
-            println("DEBUG: Failed to load playlist ${playlist.id}: ${e.message}")
-            throw Exception("Failed to load playlist: ${e.message}")
-        }
-    }
-    override suspend fun loadTracks(playlist: Playlist): Feed<Track> {
-        return PagedData.Continuous { continuation ->
-            val page = (continuation as? String)?.toIntOrNull() ?: 0
-            try {
-                val response = queries.getPlaylistWithSongs(playlist.id, page, 50)
-                val data = response.json.data as SaavnPlaylist
-                val tracks = data.songs?.map { converter.toTrack(it as SaavnSong) } ?: emptyList()
-                
-                val hasMore = tracks.size >= 50
-                Page(tracks, if (hasMore) (page + 1).toString() else null)
-            } catch (e: Exception) {
-                println("DEBUG: Failed to load playlist tracks: ${e.message}")
-                Page(emptyList<Track>(), null)
-            }
-        }.toFeed() as Feed<Track>
-    }
-    override suspend fun loadFeed(playlist: Playlist): Feed<Shelf>? {
-        return try {
-            val response = queries.getPlaylistWithSongs(playlist.id, 0, 20)
-            val saavnPlaylist = response.json.data as SaavnPlaylist
-            
-            val shelves = mutableListOf<Shelf>()
-            
-            saavnPlaylist.songs?.let { songs ->
-                if (songs.isNotEmpty()) {
-                    shelves.add(Shelf.Lists.Tracks(
-                        id = "playlist_songs",
-                        title = "Songs",
-                        list = songs.map { converter.toTrack(it as SaavnSong) }
-                    ))
-                }
-            }    
-            if (shelves.isNotEmpty()) {
-                shelves.toFeed()
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            println("DEBUG: Failed to load playlist feed: ${e.message}")
-            null
-        }
-    }
+
 }
