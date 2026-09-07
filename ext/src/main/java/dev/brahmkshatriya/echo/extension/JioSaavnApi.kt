@@ -128,7 +128,9 @@ class JioSaavnApi {
                 "pids" to songId,
                 "cc" to "in",
                 "_format" to "json",
-                "_marker" to "0"
+                "_marker" to "0",
+                "api_version" to "4",
+                "ctx" to "web6dot0"
             )
         )
         return executeRequest(url)
@@ -141,7 +143,9 @@ class JioSaavnApi {
                 "albumid" to albumId,
                 "cc" to "in",
                 "_format" to "json",
-                "_marker" to "0"
+                "_marker" to "0",
+                "api_version" to "4",
+                "ctx" to "web6dot0"
             )
         )
         return executeRequest(url)
@@ -154,9 +158,15 @@ class JioSaavnApi {
                 "artistId" to artistId,
                 "n_song" to songCount.toString(),
                 "n_album" to albumCount.toString(),
+                "p" to "1",
+                "sub_type" to "",
+                "category" to "popular",
+                "sort_order" to "asc",
                 "cc" to "in",
                 "_format" to "json",
-                "_marker" to "0"
+                "_marker" to "0",
+                "api_version" to "4",
+                "ctx" to "web6dot0"
             )
         )
         return executeRequest(url)
@@ -169,7 +179,9 @@ class JioSaavnApi {
                 "listid" to playlistId,
                 "cc" to "in",
                 "_format" to "json",
-                "_marker" to "0"
+                "_marker" to "0",
+                "api_version" to "4",
+                "ctx" to "web6dot0"
             )
         )
         return executeRequest(url)
@@ -183,6 +195,9 @@ class JioSaavnApi {
     }
     
     private suspend fun executeRequest(url: String): String {
+    
+        println("DEBUG: Request URL: $url")
+    
         val request = Request.Builder()
             .url(url)
             .get()
