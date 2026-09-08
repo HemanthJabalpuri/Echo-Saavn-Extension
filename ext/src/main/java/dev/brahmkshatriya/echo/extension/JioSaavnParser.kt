@@ -138,84 +138,19 @@ class JioSaavnParser {
         return parsePlaylistResults(results)
     }
 
-/*
     fun parseSongDetails(jsonString: String): List<SongDetail> {
-        val jsonObject = json.parseToJsonElement(jsonString).jsonObject
-        val songs = mutableListOf<SongDetail>()
-        
-        jsonObject.keys.forEach { key ->
-            val songJson = jsonObject[key]?.jsonObject ?: return@forEach
-            parseSongDetail(songJson)?.let { songs.add(it) }
+        return try {
+            val jsonObject = json.parseToJsonElement(jsonString).jsonObject
+            val songsArray = jsonObject["songs"]?.jsonArray ?: return emptyList()
+            songsArray.mapNotNull { element ->
+                parseSongDetail(element.jsonObject)
+            }
+        } catch (e: Exception) {
+            println("DEBUG: Failed to parse song details: ${e.message}")
+            emptyList()
         }
-        
-        return songs
     }
-*/
 
-fun parseSongDetails(jsonString: String): List<SongDetail> {
-    return try {
-        val jsonObject = json.parseToJsonElement(jsonString).jsonObject
-        val songsArray = jsonObject["songs"]?.jsonArray ?: return emptyList()
-        songsArray.mapNotNull { element ->
-            parseSongFromDetailJson(element.jsonObject)
-        }
-    } catch (e: Exception) {
-        println("DEBUG: Failed to parse song details: ${e.message}")
-        emptyList()
-    }
-}
-
-private fun parseSongFromDetailJson(obj: JsonObject): SongDetail? {
-    return try {
-        val moreInfo = obj["more_info"]?.jsonObject
-        val artistMap = moreInfo?.get("artistMap")?.jsonObject
-
-        // Extract primary artists
-        val primaryArtistsList = artistMap?.get("primary_artists")?.jsonArray
-        val primaryArtists = primaryArtistsList?.mapNotNull { it.jsonObject["name"]?.jsonPrimitive?.content }?.joinToString(", ") ?: ""
-        val primaryArtistsId = primaryArtistsList?.mapNotNull { it.jsonObject["id"]?.jsonPrimitive?.content }?.joinToString(", ") ?: ""
-
-        // Extract featured artists
-        val featuredArtistsList = artistMap?.get("featured_artists")?.jsonArray
-        val featuredArtists = featuredArtistsList?.mapNotNull { it.jsonObject["name"]?.jsonPrimitive?.content }?.joinToString(", ") ?: ""
-
-        val encryptedMediaUrl = moreInfo?.get("encrypted_media_url")?.jsonPrimitive?.content
-        val streamUrls = encryptedMediaUrl?.let { decryptUrl(it) }
-
-        SongDetail(
-            id = obj["id"]?.jsonPrimitive?.content ?: return null,
-            title = decodeHtml(obj["title"]?.jsonPrimitive?.content ?: ""),
-            subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
-            image = obj["image"]?.jsonPrimitive?.content ?: "",
-            permaUrl = obj["perma_url"]?.jsonPrimitive?.content ?: "",
-            type = "song",
-            language = obj["language"]?.jsonPrimitive?.content ?: "",
-            year = obj["year"]?.jsonPrimitive?.content ?: "",
-            playCount = obj["play_count"]?.jsonPrimitive?.content ?: "",
-            explicitContent = obj["explicit_content"]?.jsonPrimitive?.content == "1",
-            primaryArtists = primaryArtists,
-            primaryArtistsId = primaryArtistsId,
-            featuredArtists = featuredArtists.ifEmpty { null },
-            albumId = moreInfo?.get("album_id")?.jsonPrimitive?.content,
-            album = moreInfo?.get("album")?.jsonPrimitive?.content ?: "",
-            albumUrl = moreInfo?.get("album_url")?.jsonPrimitive?.content,
-            duration = moreInfo?.get("duration")?.jsonPrimitive?.content ?: "0",
-            label = moreInfo?.get("label")?.jsonPrimitive?.content ?: "",
-            copyright = moreInfo?.get("copyright_text")?.jsonPrimitive?.content ?: "",
-            releaseDate = moreInfo?.get("release_date")?.jsonPrimitive?.content,
-            hasLyrics = moreInfo?.get("has_lyrics")?.jsonPrimitive?.content == "true",
-            lyricsId = null, // not present
-            encryptedMediaUrl = encryptedMediaUrl,
-            streamUrls = streamUrls,
-            is320kbps = moreInfo?.get("320kbps")?.jsonPrimitive?.content == "true"
-        )
-    } catch (e: Exception) {
-        println("DEBUG: Failed to parse song detail from JSON: ${e.message}")
-        null
-    }
-}
-
-/*
     fun parseAlbumDetails(jsonString: String): AlbumDetail? {
         return try {
             val jsonObject = json.parseToJsonElement(jsonString).jsonObject
@@ -225,62 +160,7 @@ private fun parseSongFromDetailJson(obj: JsonObject): SongDetail? {
             null
         }
     }
-*/
 
-fun parseAlbumDetails(jsonString: String): AlbumDetail? {
-    return try {
-        val jsonObject = json.parseToJsonElement(jsonString).jsonObject
-        parseAlbumDetailFromJson(jsonObject)
-    } catch (e: Exception) {
-        println("DEBUG: Failed to parse album details: ${e.message}")
-        null
-    }
-}
-
-private fun parseAlbumDetailFromJson(obj: JsonObject): AlbumDetail? {
-    return try {
-        val moreInfo = obj["more_info"]?.jsonObject
-        val artistMap = moreInfo?.get("artistMap")?.jsonObject
-
-        // Extract primary artists
-        val primaryArtistsList = artistMap?.get("primary_artists")?.jsonArray
-        val primaryArtists = primaryArtistsList?.mapNotNull { it.jsonObject["name"]?.jsonPrimitive?.content }?.joinToString(", ") ?: ""
-        val primaryArtistsId = primaryArtistsList?.mapNotNull { it.jsonObject["id"]?.jsonPrimitive?.content }?.joinToString(", ") ?: ""
-
-        // Parse songs from the "list" array
-        val songs = obj["list"]?.jsonArray?.mapNotNull { element ->
-            parseSongFromDetailJson(element.jsonObject)
-        } ?: emptyList()
-
-        // Determine ID: try "id" first, fallback to "albumid"
-        val id = obj["id"]?.jsonPrimitive?.content ?: obj["albumid"]?.jsonPrimitive?.content ?: return null
-
-        // Get song count from more_info
-        val songCount = moreInfo?.get("song_count")?.jsonPrimitive?.content ?: "0"
-
-        AlbumDetail(
-            id = id,
-            title = decodeHtml(obj["title"]?.jsonPrimitive?.content ?: ""),
-            subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
-            image = obj["image"]?.jsonPrimitive?.content ?: "",
-            permaUrl = obj["perma_url"]?.jsonPrimitive?.content ?: "",
-            type = obj["type"]?.jsonPrimitive?.content ?: "album",
-            language = obj["language"]?.jsonPrimitive?.content ?: "",
-            year = obj["year"]?.jsonPrimitive?.content ?: "",
-            explicitContent = obj["explicit_content"]?.jsonPrimitive?.content == "1",
-            primaryArtists = primaryArtists,
-            primaryArtistsId = primaryArtistsId,
-            songCount = songCount,
-            releaseDate = obj["year"]?.jsonPrimitive?.content, // use year if present, else null
-            songs = songs
-        )
-    } catch (e: Exception) {
-        println("DEBUG: Failed to parse album from JSON: ${e.message}")
-        null
-    }
-}
-
-/*
     fun parseArtistDetails(jsonString: String): ArtistDetail? {
         return try {
             val jsonObject = json.parseToJsonElement(jsonString).jsonObject
@@ -290,43 +170,7 @@ private fun parseAlbumDetailFromJson(obj: JsonObject): AlbumDetail? {
             null
         }
     }
-*/
 
-    fun parseArtistDetails(jsonString: String): ArtistDetail? {
-        return try {
-            val jsonObject = json.parseToJsonElement(jsonString).jsonObject
-            parseArtistDetailFromJson(jsonObject)
-        } catch (e: Exception) {
-            println("DEBUG: Failed to parse artist details: ${e.message}")
-            null
-        }
-    }
-
-    private fun parseArtistDetailFromJson(obj: JsonObject): ArtistDetail {
-        val topSongs = obj["topSongs"]?.jsonArray?.mapNotNull {
-            parseSongFromDetailJson(it.jsonObject)
-        } ?: emptyList()
-        
-        val topAlbums = obj["topAlbums"]?.jsonArray?.mapNotNull {
-            parseAlbumResults(buildJsonArray { add(it) })?.firstOrNull()
-        } ?: emptyList()
-        
-        return ArtistDetail(
-            id = obj["artistId"]?.jsonPrimitive?.content ?: "",
-            name = decodeHtml(obj["name"]?.jsonPrimitive?.content ?: ""),
-            subtitle = obj["subtitle"]?.jsonPrimitive?.content ?: "",
-            image = obj["image"]?.jsonPrimitive?.content ?: "",
-            followerCount = obj["follower_count"]?.jsonPrimitive?.content ?: "0",
-            type = obj["type"]?.jsonPrimitive?.content ?: "artist",
-            isVerified = obj["isVerified"]?.jsonPrimitive?.booleanOrNull ?: false,
-            dominantLanguage = obj["dominantLanguage"]?.jsonPrimitive?.content ?: "",
-            dominantType = obj["dominantType"]?.jsonPrimitive?.content ?: "",
-            topSongs = topSongs,
-            topAlbums = topAlbums
-        )
-    }
-
-/*
     fun parsePlaylistDetails(jsonString: String): PlaylistDetail? {
         return try {
             val jsonObject = json.parseToJsonElement(jsonString).jsonObject
@@ -336,63 +180,6 @@ private fun parseAlbumDetailFromJson(obj: JsonObject): AlbumDetail? {
             null
         }
     }
-*/
-
-fun parsePlaylistDetails(jsonString: String): PlaylistDetail? {
-    return try {
-        val jsonObject = json.parseToJsonElement(jsonString).jsonObject
-        parsePlaylistDetailFromJson(jsonObject)
-    } catch (e: Exception) {
-        println("DEBUG: Failed to parse playlist details: ${e.message}")
-        null
-    }
-}
-
-private fun parsePlaylistDetailFromJson(obj: JsonObject): PlaylistDetail? {
-    return try {
-        val moreInfo = obj["more_info"]?.jsonObject
-        val artistMap = moreInfo?.get("artistMap")?.jsonObject
-
-        // Extract primary artists (if present)
-        val primaryArtistsList = artistMap?.get("primary_artists")?.jsonArray
-        val primaryArtists = primaryArtistsList?.mapNotNull { it.jsonObject["name"]?.jsonPrimitive?.content }?.joinToString(", ") ?: ""
-        val primaryArtistsId = primaryArtistsList?.mapNotNull { it.jsonObject["id"]?.jsonPrimitive?.content }?.joinToString(", ") ?: ""
-
-        // Parse songs from the "list" array
-        val songs = obj["list"]?.jsonArray?.mapNotNull { element ->
-            parseSongFromDetailJson(element.jsonObject)
-        } ?: emptyList()
-
-        // Determine ID: try "id" first, fallback to "listid"
-        val id = obj["id"]?.jsonPrimitive?.content ?: obj["listid"]?.jsonPrimitive?.content ?: return null
-
-        // Get song count and follower count from more_info
-        val songCount = moreInfo?.get("song_count")?.jsonPrimitive?.content 
-            ?: obj["list_count"]?.jsonPrimitive?.content 
-            ?: "0"
-        val followerCount = moreInfo?.get("follower_count")?.jsonPrimitive?.content 
-            ?: obj["follower_count"]?.jsonPrimitive?.content 
-            ?: "0"
-
-        PlaylistDetail(
-            id = id,
-            title = decodeHtml(obj["title"]?.jsonPrimitive?.content 
-                ?: obj["listname"]?.jsonPrimitive?.content ?: ""),
-            subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
-            image = obj["image"]?.jsonPrimitive?.content ?: "",
-            permaUrl = obj["perma_url"]?.jsonPrimitive?.content ?: "",
-            type = obj["type"]?.jsonPrimitive?.content ?: "playlist",
-            language = obj["language"]?.jsonPrimitive?.content ?: "",
-            explicitContent = obj["explicit_content"]?.jsonPrimitive?.content == "1",
-            songCount = songCount,
-            followerCount = followerCount,
-            songs = songs
-        )
-    } catch (e: Exception) {
-        println("DEBUG: Failed to parse playlist from JSON: ${e.message}")
-        null
-    }
-}
 
     fun parseHomeData(jsonString: String): HomeData? {
         return try {
@@ -465,9 +252,7 @@ private fun parsePlaylistDetailFromJson(obj: JsonObject): PlaylistDetail? {
     private fun parseSongFromJson(obj: JsonObject): SongResult? {
         return try {
             SongResult(
-                id = obj["id"]?.jsonPrimitive?.content 
-                    ?: obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") 
-                    ?: return null,
+                id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return null,
                 title = decodeHtml(obj["title"]?.jsonPrimitive?.content 
                     ?: obj["song"]?.jsonPrimitive?.content ?: ""),
                 subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
@@ -495,9 +280,7 @@ private fun parsePlaylistDetailFromJson(obj: JsonObject): PlaylistDetail? {
     private fun parseAlbumFromJson(obj: JsonObject): AlbumResult? {
         return try {
             AlbumResult(
-                id = obj["id"]?.jsonPrimitive?.content 
-                    ?: obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") 
-                    ?: return null,
+                id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return null,
                 title = decodeHtml(obj["title"]?.jsonPrimitive?.content ?: ""),
                 subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content 
                     ?: obj["header_desc"]?.jsonPrimitive?.content ?: ""),
@@ -518,10 +301,7 @@ private fun parsePlaylistDetailFromJson(obj: JsonObject): PlaylistDetail? {
     private fun parsePlaylistFromJson(obj: JsonObject): PlaylistResult? {
         return try {
             PlaylistResult(
-                id = obj["id"]?.jsonPrimitive?.content 
-                    ?: obj["listid"]?.jsonPrimitive?.content 
-                    ?: obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") 
-                    ?: return null,
+                id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return null,
                 title = decodeHtml(obj["title"]?.jsonPrimitive?.content 
                     ?: obj["listname"]?.jsonPrimitive?.content ?: ""),
                 subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content 
@@ -545,7 +325,7 @@ private fun parsePlaylistDetailFromJson(obj: JsonObject): PlaylistDetail? {
             try {
                 val obj = element.jsonObject
                 SongResult(
-                    id = obj["id"]?.jsonPrimitive?.content ?: return@mapNotNull null,
+                    id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return@mapNotNull null,
                     title = decodeHtml(obj["title"]?.jsonPrimitive?.content ?: ""),
                     subtitle = obj["subtitle"]?.jsonPrimitive?.content ?: "",
                     image = obj["image"]?.jsonPrimitive?.content ?: "",
@@ -566,14 +346,20 @@ private fun parsePlaylistDetailFromJson(obj: JsonObject): PlaylistDetail? {
             }
         }
     }
-    
+
     private fun parseAlbumResults(array: JsonArray?): List<AlbumResult> {
         if (array == null) return emptyList()
         return array.mapNotNull { element ->
             try {
                 val obj = element.jsonObject
+                val moreInfo = obj["more_info"]?.jsonObject
+                val artistMap = moreInfo?.get("artistMap")?.jsonObject
+                
+                val primaryArtists = artistMap?.get("primary_artists")?.jsonArray?.let { extractArtistNames(it) } ?: ""
+                val primaryArtistsId = artistMap?.get("primary_artists")?.jsonArray?.let { extractArtistIds(it) } ?: ""
+                
                 AlbumResult(
-                    id = obj["id"]?.jsonPrimitive?.content ?: return@mapNotNull null,
+                    id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return@mapNotNull null,
                     title = decodeHtml(obj["title"]?.jsonPrimitive?.content ?: ""),
                     subtitle = obj["subtitle"]?.jsonPrimitive?.content ?: "",
                     image = obj["image"]?.jsonPrimitive?.content ?: "",
@@ -582,21 +368,23 @@ private fun parsePlaylistDetailFromJson(obj: JsonObject): PlaylistDetail? {
                     language = obj["language"]?.jsonPrimitive?.content ?: "",
                     year = obj["year"]?.jsonPrimitive?.content ?: "",
                     explicitContent = obj["explicit_content"]?.jsonPrimitive?.content == "1",
-                    songCount = obj["more_info"]?.jsonObject?.get("song_count")?.jsonPrimitive?.content ?: "0"
+                    songCount = moreInfo?.get("song_count")?.jsonPrimitive?.content ?: "0",
+                    primaryArtists = primaryArtists,
+                    primaryArtistsId = primaryArtistsId
                 )
             } catch (e: Exception) {
                 null
             }
         }
     }
-    
+
     private fun parseArtistResults(array: JsonArray?): List<ArtistResult> {
         if (array == null) return emptyList()
         return array.mapNotNull { element ->
             try {
                 val obj = element.jsonObject
                 ArtistResult(
-                    id = obj["id"]?.jsonPrimitive?.content ?: return@mapNotNull null,
+                    id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return@mapNotNull null,
                     name = decodeHtml(obj["title"]?.jsonPrimitive?.content ?: ""),
                     image = obj["image"]?.jsonPrimitive?.content ?: "",
                     permaUrl = obj["perma_url"]?.jsonPrimitive?.content ?: "",
@@ -615,7 +403,7 @@ private fun parsePlaylistDetailFromJson(obj: JsonObject): PlaylistDetail? {
             try {
                 val obj = element.jsonObject
                 PlaylistResult(
-                    id = obj["id"]?.jsonPrimitive?.content ?: return@mapNotNull null,
+                    id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return@mapNotNull null,
                     title = decodeHtml(obj["title"]?.jsonPrimitive?.content ?: ""),
                     subtitle = obj["subtitle"]?.jsonPrimitive?.content ?: "",
                     image = obj["image"]?.jsonPrimitive?.content ?: "",
@@ -630,79 +418,88 @@ private fun parsePlaylistDetailFromJson(obj: JsonObject): PlaylistDetail? {
             }
         }
     }
-    
+
     private fun parseSongDetail(obj: JsonObject): SongDetail? {
-        return try {
-            val encryptedMediaUrl = obj["encrypted_media_url"]?.jsonPrimitive?.content
-            val is320Available = obj["320kbps"]?.jsonPrimitive?.content == "true"
-            
-            SongDetail(
-                id = obj["id"]?.jsonPrimitive?.content ?: return null,
-                title = decodeHtml(obj["song"]?.jsonPrimitive?.content ?: ""),
-                subtitle = obj["subtitle"]?.jsonPrimitive?.content ?: "",
-                image = obj["image"]?.jsonPrimitive?.content ?: "",
-                permaUrl = obj["perma_url"]?.jsonPrimitive?.content ?: "",
-                type = "song",
-                language = obj["language"]?.jsonPrimitive?.content ?: "",
-                year = obj["year"]?.jsonPrimitive?.content ?: "",
-                playCount = obj["play_count"]?.jsonPrimitive?.content ?: "",
-                explicitContent = obj["explicit_content"]?.jsonPrimitive?.content == "1",
-                primaryArtists = obj["primary_artists"]?.jsonPrimitive?.content ?: "",
-                primaryArtistsId = obj["primary_artists_id"]?.jsonPrimitive?.content ?: "",
-                featuredArtists = obj["featured_artists"]?.jsonPrimitive?.content,
-                albumId = obj["albumid"]?.jsonPrimitive?.content,
-                album = obj["album"]?.jsonPrimitive?.content ?: "",
-                albumUrl = obj["album_url"]?.jsonPrimitive?.content,
-                duration = obj["duration"]?.jsonPrimitive?.content ?: "",
-                label = obj["label"]?.jsonPrimitive?.content ?: "",
-                copyright = obj["copyright_text"]?.jsonPrimitive?.content ?: "",
-                releaseDate = obj["release_date"]?.jsonPrimitive?.content,
-                hasLyrics = obj["has_lyrics"]?.jsonPrimitive?.content == "true",
-                lyricsId = obj["lyrics_id"]?.jsonPrimitive?.content,
-                encryptedMediaUrl = encryptedMediaUrl,
-                streamUrls = encryptedMediaUrl?.let { decryptUrl(it) },
-                is320kbps = is320Available
-            )
-        } catch (e: Exception) {
-            println("DEBUG: Failed to parse song detail: ${e.message}")
-            null
-        }
-    }
-    
-    private fun parseAlbumDetail(obj: JsonObject): AlbumDetail {
-        val songs = obj["songs"]?.jsonArray?.mapNotNull { 
-            parseSongDetail(it.jsonObject) 
-        } ?: emptyList()
-        
-        return AlbumDetail(
-            id = obj["albumid"]?.jsonPrimitive?.content ?: "",
+        val id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return null
+        val moreInfo = obj["more_info"]?.jsonObject
+        val artistMap = moreInfo?.get("artistMap")?.jsonObject
+
+        val primaryArtists = artistMap?.get("primary_artists")?.jsonArray?.let { extractArtistNames(it) } ?: ""
+        val primaryArtistsId = artistMap?.get("primary_artists")?.jsonArray?.let { extractArtistIds(it) } ?: ""
+
+        val featuredArtists = artistMap?.get("featured_artists")?.jsonArray
+            ?.let { extractArtistNames(it) }
+            ?.ifEmpty { null }
+
+        val encryptedMediaUrl = moreInfo?.get("encrypted_media_url")?.jsonPrimitive?.content
+        val streamUrls = encryptedMediaUrl?.let { decryptUrl(it) }
+
+        return SongDetail(
+            id = id,
             title = decodeHtml(obj["title"]?.jsonPrimitive?.content ?: ""),
-            subtitle = obj["subtitle"]?.jsonPrimitive?.content ?: "",
+            subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
+            image = obj["image"]?.jsonPrimitive?.content ?: "",
+            permaUrl = obj["perma_url"]?.jsonPrimitive?.content ?: "",
+            type = "song",
+            language = obj["language"]?.jsonPrimitive?.content ?: "",
+            year = obj["year"]?.jsonPrimitive?.content ?: "",
+            playCount = obj["play_count"]?.jsonPrimitive?.content ?: "",
+            explicitContent = obj["explicit_content"]?.jsonPrimitive?.content == "1",
+            primaryArtists = primaryArtists,
+            primaryArtistsId = primaryArtistsId,
+            featuredArtists = featuredArtists,
+            albumId = moreInfo?.get("album_url")?.jsonPrimitive?.content?.substringAfterLast("/"),
+            album = moreInfo?.get("album")?.jsonPrimitive?.content ?: "",
+            albumUrl = moreInfo?.get("album_url")?.jsonPrimitive?.content,
+            duration = moreInfo?.get("duration")?.jsonPrimitive?.content ?: "0",
+            label = moreInfo?.get("label")?.jsonPrimitive?.content ?: "",
+            copyright = moreInfo?.get("copyright_text")?.jsonPrimitive?.content ?: "",
+            releaseDate = moreInfo?.get("release_date")?.jsonPrimitive?.content,
+            hasLyrics = moreInfo?.get("has_lyrics")?.jsonPrimitive?.content == "true",
+            lyricsId = null,
+            encryptedMediaUrl = encryptedMediaUrl,
+            streamUrls = streamUrls,
+            is320kbps = moreInfo?.get("320kbps")?.jsonPrimitive?.content == "true"
+        )
+    }
+
+    private fun parseAlbumDetail(obj: JsonObject): AlbumDetail? {
+        val id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return null
+        val moreInfo = obj["more_info"]?.jsonObject
+        val artistMap = moreInfo?.get("artistMap")?.jsonObject
+
+        val primaryArtists = artistMap?.get("primary_artists")?.jsonArray?.let { extractArtistNames(it) } ?: ""
+        val primaryArtistsId = artistMap?.get("primary_artists")?.jsonArray?.let { extractArtistIds(it) } ?: ""
+
+        val songs = obj["list"]?.jsonArray?.mapNotNull { parseSongDetail(it.jsonObject) } ?: emptyList()
+        val songCount = moreInfo?.get("song_count")?.jsonPrimitive?.content ?: "0"
+
+        return AlbumDetail(
+            id = id,
+            title = decodeHtml(obj["title"]?.jsonPrimitive?.content ?: ""),
+            subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
             image = obj["image"]?.jsonPrimitive?.content ?: "",
             permaUrl = obj["perma_url"]?.jsonPrimitive?.content ?: "",
             type = obj["type"]?.jsonPrimitive?.content ?: "album",
             language = obj["language"]?.jsonPrimitive?.content ?: "",
             year = obj["year"]?.jsonPrimitive?.content ?: "",
             explicitContent = obj["explicit_content"]?.jsonPrimitive?.content == "1",
-            primaryArtists = obj["primary_artists"]?.jsonPrimitive?.content ?: "",
-            primaryArtistsId = obj["primary_artists_id"]?.jsonPrimitive?.content ?: "",
-            songCount = obj["song_count"]?.jsonPrimitive?.content ?: "0",
-            releaseDate = obj["release_date"]?.jsonPrimitive?.content,
+            primaryArtists = primaryArtists,
+            primaryArtistsId = primaryArtistsId,
+            songCount = songCount,
+            releaseDate = obj["year"]?.jsonPrimitive?.content, // year as release date
             songs = songs
         )
     }
-    
-    private fun parseArtistDetail(obj: JsonObject): ArtistDetail {
-        val topSongs = obj["topSongs"]?.jsonObject?.get("songs")?.jsonArray?.mapNotNull {
-            parseSongDetail(it.jsonObject)
-        } ?: emptyList()
-        
-        val topAlbums = obj["topAlbums"]?.jsonObject?.get("albums")?.jsonArray?.mapNotNull {
-            parseAlbumResults(buildJsonArray { add(it) })?.firstOrNull()
-        } ?: emptyList()
-        
+
+    private fun parseArtistDetail(obj: JsonObject): ArtistDetail? {
+        val id = obj["urls"]?.jsonObject?.get("overview")?.jsonPrimitive?.content?.substringAfterLast("/") ?: return null
+
+        val topSongs = obj["topSongs"]?.jsonArray?.mapNotNull { parseSongDetail(it.jsonObject) } ?: emptyList()
+        val topAlbums = obj["topAlbums"]?.jsonArray?.mapNotNull { parseAlbumResults(buildJsonArray { add(it) })?.firstOrNull() } ?: emptyList()
+
         return ArtistDetail(
-            id = obj["artistId"]?.jsonPrimitive?.content ?: "",
+            id = id,
             name = decodeHtml(obj["name"]?.jsonPrimitive?.content ?: ""),
             subtitle = obj["subtitle"]?.jsonPrimitive?.content ?: "",
             image = obj["image"]?.jsonPrimitive?.content ?: "",
@@ -715,38 +512,30 @@ private fun parsePlaylistDetailFromJson(obj: JsonObject): PlaylistDetail? {
             topAlbums = topAlbums
         )
     }
-    
-    private fun parsePlaylistDetail(obj: JsonObject): PlaylistDetail {
-        val songsArray = obj["list"]?.jsonArray 
-            ?: obj["songs"]?.jsonArray 
-            ?: obj["content_list"]?.jsonArray
-        
-        val songs = songsArray?.mapNotNull { element ->
-            try {
-                when {
-                    element is JsonObject -> parseSongDetail(element)
-                    element is JsonPrimitive && element.isString -> {
-                        null
-                    }
-                    else -> null
-                }
-            } catch (e: Exception) {
-                println("DEBUG: Failed to parse playlist song: ${e.message}")
-                null
-            }
-        } ?: emptyList()
-        
+
+    private fun parsePlaylistDetail(obj: JsonObject): PlaylistDetail? {
+        val id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return null
+        val moreInfo = obj["more_info"]?.jsonObject
+
+        val songs = obj["list"]?.jsonArray?.mapNotNull { parseSongDetail(it.jsonObject) } ?: emptyList()
+        val songCount = moreInfo?.get("song_count")?.jsonPrimitive?.content
+            ?: obj["list_count"]?.jsonPrimitive?.content
+            ?: "0"
+        val followerCount = moreInfo?.get("follower_count")?.jsonPrimitive?.content
+            ?: obj["follower_count"]?.jsonPrimitive?.content
+            ?: "0"
+
         return PlaylistDetail(
-            id = obj["listid"]?.jsonPrimitive?.content ?: "",
-            title = decodeHtml(obj["listname"]?.jsonPrimitive?.content ?: ""),
-            subtitle = obj["subtitle"]?.jsonPrimitive?.content ?: "",
+            id = id,
+            title = decodeHtml(obj["title"]?.jsonPrimitive?.content ?: obj["listname"]?.jsonPrimitive?.content ?: ""),
+            subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
             image = obj["image"]?.jsonPrimitive?.content ?: "",
             permaUrl = obj["perma_url"]?.jsonPrimitive?.content ?: "",
             type = obj["type"]?.jsonPrimitive?.content ?: "playlist",
             language = obj["language"]?.jsonPrimitive?.content ?: "",
             explicitContent = obj["explicit_content"]?.jsonPrimitive?.content == "1",
-            songCount = obj["list_count"]?.jsonPrimitive?.content ?: "0",
-            followerCount = obj["follower_count"]?.jsonPrimitive?.content ?: "0",
+            songCount = songCount,
+            followerCount = followerCount,
             songs = songs
         )
     }
@@ -756,7 +545,13 @@ private fun parsePlaylistDetailFromJson(obj: JsonObject): PlaylistDetail? {
             it.jsonObject["name"]?.jsonPrimitive?.content 
         }.joinToString(", ")
     }
-    
+
+    private fun extractArtistIds(array: JsonArray): String {
+        return array.mapNotNull { 
+            it.jsonObject["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/")
+        }.joinToString(", ")
+    }
+
     private fun decodeHtml(text: String): String {
         return text
             .replace("&amp;", "&")
@@ -808,7 +603,9 @@ data class AlbumResult(
     val language: String,
     val year: String,
     val explicitContent: Boolean,
-    val songCount: String
+    val songCount: String,
+    val primaryArtists: String = "",
+    val primaryArtistsId: String = ""
 )
 
 data class ArtistResult(

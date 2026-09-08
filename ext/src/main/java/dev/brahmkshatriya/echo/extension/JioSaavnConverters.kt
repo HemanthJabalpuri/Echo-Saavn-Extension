@@ -114,23 +114,30 @@ fun songDetailToTrack(song: SongDetail): Track {
         )
     }
     
+    // Build artist list with IDs
+    val artistNames = song.primaryArtists.split(", ").filter { it.isNotBlank() }
+    val artistIds = song.primaryArtistsId.split(", ").filter { it.isNotBlank() }
+    
+    val artists = artistNames.mapIndexed { index, name ->
+        val id = if (index < artistIds.size) artistIds[index] else ""
+        Artist(
+            id = id,
+            name = name,
+            cover = null,
+            bio = null,
+            background = null,
+            banners = emptyList(),
+            subtitle = null,
+            extras = emptyMap()
+        )
+    }
+    
     return Track(
         id = song.id,
         title = song.title,
         type = Track.Type.Song,
         cover = convertImageUrl(song.image).toImageHolder(),
-        artists = song.primaryArtists.split(", ").map { name ->
-            Artist(
-                id = "",
-                name = name,
-                cover = null,
-                bio = null,
-                background = null,
-                banners = emptyList(),
-                subtitle = null,
-                extras = emptyMap()
-            )
-        },
+        artists = artists,
         album = song.albumId?.let { albumId ->
             Album(
                 id = albumId,
@@ -176,12 +183,30 @@ fun songDetailToTrack(song: SongDetail): Track {
 }
 
 fun albumResultToAlbum(album: AlbumResult): Album {
+    // Build artist list with IDs
+    val artistNames = album.primaryArtists.split(", ").filter { it.isNotBlank() }
+    val artistIds = album.primaryArtistsId.split(", ").filter { it.isNotBlank() }
+    
+    val artists = artistNames.mapIndexed { index, name ->
+        val id = if (index < artistIds.size) artistIds[index] else ""
+        Artist(
+            id = id,
+            name = name,
+            cover = null,
+            bio = null,
+            background = null,
+            banners = emptyList(),
+            subtitle = null,
+            extras = emptyMap()
+        )
+    }
+    
     return Album(
         id = album.id,
         title = album.title,
         type = null,
         cover = convertImageUrl(album.image).toImageHolder(),
-        artists = emptyList(),
+        artists = artists,
         trackCount = album.songCount.toLongOrNull(),
         duration = null,
         releaseDate = null,
@@ -200,23 +225,30 @@ fun albumResultToAlbum(album: AlbumResult): Album {
 }
 
 fun albumDetailToAlbum(album: AlbumDetail): Album {
+    // Build artist list with IDs
+    val artistNames = album.primaryArtists.split(", ").filter { it.isNotBlank() }
+    val artistIds = album.primaryArtistsId.split(", ").filter { it.isNotBlank() }
+    
+    val artists = artistNames.mapIndexed { index, name ->
+        val id = if (index < artistIds.size) artistIds[index] else ""
+        Artist(
+            id = id,
+            name = name,
+            cover = null,
+            bio = null,
+            background = null,
+            banners = emptyList(),
+            subtitle = null,
+            extras = emptyMap()
+        )
+    }
+    
     return Album(
         id = album.id,
         title = album.title,
         type = null,
         cover = convertImageUrl(album.image).toImageHolder(),
-        artists = album.primaryArtists.split(", ").map { name ->
-            Artist(
-                id = "",
-                name = name,
-                cover = null,
-                bio = null,
-                background = null,
-                banners = emptyList(),
-                subtitle = null,
-                extras = emptyMap()
-            )
-        },
+        artists = artists,
         trackCount = album.songCount.toLongOrNull(),
         duration = null,
         releaseDate = parseDate(album.releaseDate),

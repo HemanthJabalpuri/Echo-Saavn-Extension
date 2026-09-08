@@ -36,10 +36,10 @@ class JioSaavnApi {
         private const val SEARCH_ARTISTS = "search.getArtistResults"
         private const val SEARCH_PLAYLISTS = "search.getPlaylistResults"
 
-        private const val SONG_DETAILS = "song.getDetails"
-        private const val ALBUM_DETAILS = "content.getAlbumDetails"
-        private const val ARTIST_DETAILS = "artist.getArtistPageDetails"
-        private const val PLAYLIST_DETAILS = "playlist.getDetails"
+        private const val SONG_DETAILS = "webapi.get"
+        private const val ALBUM_DETAILS = "webapi.get"
+        private const val ARTIST_DETAILS = "webapi.get"
+        private const val PLAYLIST_DETAILS = "webapi.get"
     }
 
     suspend fun searchAll(query: String, page: Int = 1, limit: Int = 20): String {
@@ -125,7 +125,8 @@ class JioSaavnApi {
         val url = buildUrl(
             call = SONG_DETAILS,
             params = mapOf(
-                "pids" to songId,
+                "type" to "song",
+                "token" to songId,
                 "cc" to "in",
                 "_format" to "json",
                 "_marker" to "0",
@@ -140,7 +141,8 @@ class JioSaavnApi {
         val url = buildUrl(
             call = ALBUM_DETAILS,
             params = mapOf(
-                "albumid" to albumId,
+                "type" to "album",
+                "token" to albumId,
                 "cc" to "in",
                 "_format" to "json",
                 "_marker" to "0",
@@ -155,13 +157,14 @@ class JioSaavnApi {
         val url = buildUrl(
             call = ARTIST_DETAILS,
             params = mapOf(
-                "artistId" to artistId,
+                "type" to "artist",
+                "token" to artistId,
                 "n_song" to songCount.toString(),
                 "n_album" to albumCount.toString(),
-                "p" to "1",
+                "page" to "0",
                 "sub_type" to "",
-                "category" to "popular",
-                "sort_order" to "asc",
+                "category" to "",
+                "sort_order" to "",
                 "cc" to "in",
                 "_format" to "json",
                 "_marker" to "0",
@@ -176,7 +179,10 @@ class JioSaavnApi {
         val url = buildUrl(
             call = PLAYLIST_DETAILS,
             params = mapOf(
-                "listid" to playlistId,
+                "type" to "playlist",
+                "token" to playlistId,
+                "p" to "1",
+                "n" to "100",
                 "cc" to "in",
                 "_format" to "json",
                 "_marker" to "0",
