@@ -253,6 +253,7 @@ class JioSaavnParser {
         return try {
             SongResult(
                 id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return null,
+                numericId = obj["id"]?.jsonPrimitive?.content ?: "",  // Original numeric ID
                 title = decodeHtml(obj["title"]?.jsonPrimitive?.content 
                     ?: obj["song"]?.jsonPrimitive?.content ?: ""),
                 subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
@@ -326,6 +327,7 @@ class JioSaavnParser {
                 val obj = element.jsonObject
                 SongResult(
                     id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return@mapNotNull null,
+                    numericId = obj["id"]?.jsonPrimitive?.content ?: "",  // Original numeric ID
                     title = decodeHtml(obj["title"]?.jsonPrimitive?.content ?: ""),
                     subtitle = obj["subtitle"]?.jsonPrimitive?.content ?: "",
                     image = obj["image"]?.jsonPrimitive?.content ?: "",
@@ -436,6 +438,7 @@ class JioSaavnParser {
 
         return SongDetail(
             id = id,
+            numericId = obj["id"]?.jsonPrimitive?.content ?: "",  // Original numeric ID
             title = decodeHtml(obj["title"]?.jsonPrimitive?.content ?: ""),
             subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
             image = obj["image"]?.jsonPrimitive?.content ?: "",
@@ -449,7 +452,7 @@ class JioSaavnParser {
             primaryArtistsId = primaryArtistsId,
             featuredArtists = featuredArtists,
             albumId = moreInfo?.get("album_url")?.jsonPrimitive?.content?.substringAfterLast("/"),
-            album = moreInfo?.get("album")?.jsonPrimitive?.content ?: "",
+            album = decodeHtml(moreInfo?.get("album")?.jsonPrimitive?.content ?: ""),
             albumUrl = moreInfo?.get("album_url")?.jsonPrimitive?.content,
             duration = moreInfo?.get("duration")?.jsonPrimitive?.content ?: "0",
             label = moreInfo?.get("label")?.jsonPrimitive?.content ?: "",
@@ -497,6 +500,9 @@ class JioSaavnParser {
 
         val topSongs = obj["topSongs"]?.jsonArray?.mapNotNull { parseSongDetail(it.jsonObject) } ?: emptyList()
         val topAlbums = obj["topAlbums"]?.jsonArray?.mapNotNull { parseAlbumResults(buildJsonArray { add(it) })?.firstOrNull() } ?: emptyList()
+        
+        // Extract isRadioPresent (top-level boolean)
+        val isRadioPresent = obj["isRadioPresent"]?.jsonPrimitive?.booleanOrNull ?: false
 
         return ArtistDetail(
             id = id,
@@ -509,7 +515,8 @@ class JioSaavnParser {
             dominantLanguage = obj["dominantLanguage"]?.jsonPrimitive?.content ?: "",
             dominantType = obj["dominantType"]?.jsonPrimitive?.content ?: "",
             topSongs = topSongs,
-            topAlbums = topAlbums
+            topAlbums = topAlbums,
+            isRadioPresent = isRadioPresent
         )
     }
 
@@ -552,6 +559,44 @@ class JioSaavnParser {
         }.joinToString(", ")
     }
 
+    fun parseArtistRadioStationId(response: String): String? {
+        return try {
+            val jsonObject = json.parseToJsonElement(response).jsonObject
+            jsonObject["stationid"]?.jsonPrimitive?.content
+        } catch (e: Exception) {
+            println("DEBUG: Failed to parse station ID: ${e.message}")
+            null
+        }
+    }
+
+    fun parseRadioSongs(response: String): List<SongDetail> {
+        return try {
+            val jsonObject = json.parseToJsonElement(response).jsonObject
+            val songs = mutableListOf<SongDetail>()
+            
+            jsonObject.keys.forEach { key ->
+                try {
+                    // Only proceed if the value is a JsonObject
+                    val value = jsonObject[key]
+                    if (value is JsonObject) {
+                        val songObject = value["song"] as? JsonObject
+                        if (songObject != null) {
+                            parseSongDetail(songObject)?.let { songs.add(it) }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Skip this key and continue
+                }
+            }
+            
+            songs
+        } catch (e: Exception) {
+            println("DEBUGG: Failed to parse radio songs: ${e.message}")
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
     private fun decodeHtml(text: String): String {
         return text
             .replace("&amp;", "&")
@@ -577,7 +622,8 @@ data class SearchAllResult(
 )
 
 data class SongResult(
-    val id: String,
+    val id: String,           // The token from perma_url (display ID)
+    val numericId: String,    // The original numeric ID from API
     val title: String,
     val subtitle: String,
     val image: String,
@@ -630,7 +676,8 @@ data class PlaylistResult(
 )
 
 data class SongDetail(
-    val id: String,
+    val id: String,           // The token from perma_url (display ID)
+    val numericId: String,    // The original numeric ID from API
     val title: String,
     val subtitle: String,
     val image: String,
@@ -685,7 +732,8 @@ data class ArtistDetail(
     val dominantLanguage: String,
     val dominantType: String,
     val topSongs: List<SongDetail>,
-    val topAlbums: List<AlbumResult>
+    val topAlbums: List<AlbumResult>,
+    val isRadioPresent: Boolean = false
 )
 
 data class PlaylistDetail(

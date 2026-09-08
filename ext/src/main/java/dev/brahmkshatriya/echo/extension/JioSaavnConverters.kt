@@ -78,7 +78,7 @@ fun songResultToTrack(song: SongResult): Track {
         releaseDate = null,
         description = null,
         background = convertImageUrl(song.image).toImageHolder(),
-        genres = emptyList(),
+        genres = if (song.language.isNotBlank()) listOf(song.language) else emptyList(),
         isrc = null,
         albumOrderNumber = null,
         albumDiscNumber = null,
@@ -88,7 +88,8 @@ fun songResultToTrack(song: SongResult): Track {
         extras = mapOf(
             "language" to song.language,
             "year" to song.year,
-            "permaUrl" to song.permaUrl
+            "permaUrl" to song.permaUrl,
+            "songId" to song.numericId
         ),
         isPlayable = Track.Playable.Yes,
         streamables = emptyList()
@@ -162,7 +163,7 @@ fun songDetailToTrack(song: SongDetail): Track {
         releaseDate = parseDate(song.releaseDate),
         description = null,
         background = convertImageUrl(song.image).toImageHolder(),
-        genres = emptyList(),
+        genres = if (song.language.isNotBlank()) listOf(song.language) else emptyList(),
         isrc = null,
         albumOrderNumber = null,
         albumDiscNumber = null,
@@ -175,7 +176,8 @@ fun songDetailToTrack(song: SongDetail): Track {
             "permaUrl" to song.permaUrl,
             "hasLyrics" to song.hasLyrics.toString(),
             "label" to song.label,
-            "copyright" to song.copyright
+            "copyright" to song.copyright,
+            "songId" to song.numericId
         ),
         isPlayable = Track.Playable.Yes,
         streamables = streamables
@@ -297,7 +299,8 @@ fun artistDetailToArtist(artist: ArtistDetail): Artist {
             "type" to artist.type,
             "isVerified" to artist.isVerified.toString(),
             "dominantLanguage" to artist.dominantLanguage,
-            "dominantType" to artist.dominantType
+            "dominantType" to artist.dominantType,
+            "isRadioPresent" to artist.isRadioPresent.toString() // Add this
         )
     )
 }

@@ -424,13 +424,14 @@ class SaavnExtension : ExtensionClient,
             }
         }
     }
-    
+
     override suspend fun loadFeed(track: Track): Feed<Shelf> {
         return try {
             println("DEBUG: Loading related tracks for: ${track.id}")
 
             try {
-                val stationResponse = api.createSongStation(track.id)
+                val songId = track.extras["songId"] ?: track.id
+                val stationResponse = api.createSongStation(songId)
                 val stationId = parser.parseStationId(stationResponse)
                 
                 if (stationId != null) {
@@ -718,12 +719,48 @@ class SaavnExtension : ExtensionClient,
         }
     }
     
-    private suspend fun createRadioFromArtist(artist: Artist): Radio {
+    internal suspend fun createRadioFromArtist(artist: Artist): Radio {
         return try {
+            // Fetch artist details to check radio availability
             val response = api.getArtistDetails(artist.id, songCount = 50, albumCount = 10)
             val artistDetail = parser.parseArtistDetails(response)
                 ?: throw Exception("Artist not found")
             
+            // Check if radio is available
+            if (artistDetail.isRadioPresent) {
+                try {
+                    // Step 1: Create radio station
+                    val language = artistDetail.dominantLanguage.takeIf { it.isNotBlank() } ?: "hindi"
+                    val stationResponse = api.createArtistRadioStation(artistDetail.name, language)
+                    val stationId = parser.parseArtistRadioStationId(stationResponse)
+                    
+                    if (stationId != null) {
+                        // Step 2: Get radio songs
+                        val songsResponse = api.getRadioSongs(stationId, limit = 20)
+                        val radioSongs = parser.parseRadioSongs(songsResponse)
+                        
+                        if (radioSongs.isNotEmpty()) {
+                            val trackIds = radioSongs.map { it.id }.joinToString(",")
+                            
+                            return Radio(
+                                id = "radio_${artist.id}",
+                                title = "${artist.name} Radio",
+                                subtitle = "Radio station for ${artist.name}",
+                                cover = artist.cover,
+                                extras = mapOf("tracks" to trackIds)
+                            )
+                        }
+                    }
+                    
+                    // If we reach here, something failed in radio creation
+                    println("DEBUG: Radio creation failed for ${artist.name}, falling back to top songs")
+                    
+                } catch (e: Exception) {
+                    println("DEBUG: Radio API failed for ${artist.name}: ${e.message}, falling back to top songs")
+                }
+            }
+            
+            // Fallback: Use top songs
             val trackIds = artistDetail.topSongs.map { it.id }.joinToString(",")
             
             Radio(
@@ -733,12 +770,13 @@ class SaavnExtension : ExtensionClient,
                 cover = artist.cover,
                 extras = mapOf("tracks" to trackIds)
             )
+            
         } catch (e: Exception) {
             println("DEBUG: Failed to create radio from artist: ${e.message}")
             throw Exception("Failed to create radio: ${e.message}")
         }
     }
-    
+
     private suspend fun createRadioFromPlaylist(playlist: Playlist): Radio {
         return try {
             val response = api.getPlaylistDetails(playlist.id)

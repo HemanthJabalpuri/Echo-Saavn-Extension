@@ -216,7 +216,41 @@ class JioSaavnApi {
         
         return response.body?.string() ?: throw Exception("Empty response body")
     }
-    
+
+    suspend fun createArtistRadioStation(artistName: String, language: String = "hindi"): String {
+        val url = buildUrl(
+            call = "webradio.createArtistStation",
+            params = mapOf(
+                "mode" to "",
+                "artistid" to "",
+                "name" to artistName,
+                "query" to artistName,
+                "language" to language,
+                "_format" to "json",
+                "_marker" to "0",
+                "api_version" to "4",
+                "ctx" to "web6dot0"
+            )
+        )
+        return executeRequest(url)
+    }
+
+    suspend fun getRadioSongs(stationId: String, limit: Int = 20): String {
+        val url = buildUrl(
+            call = "webradio.getSong",
+            params = mapOf(
+                "stationid" to stationId,
+                "k" to limit.toString(),
+                "next" to "1",
+                "_format" to "json",
+                "_marker" to "0",
+                "api_version" to "4",
+                "ctx" to "web6dot0"
+            )
+        )
+        return executeRequest(url)
+    }
+
     suspend fun createSongStation(songId: String): String {
         val encodedSongId = java.net.URLEncoder.encode(songId, "UTF-8")
         val entityId = "[\"$encodedSongId\"]"
