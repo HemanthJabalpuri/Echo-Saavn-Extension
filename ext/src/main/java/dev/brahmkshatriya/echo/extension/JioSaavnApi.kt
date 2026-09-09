@@ -152,8 +152,10 @@ class JioSaavnApi {
         )
         return executeRequest(url)
     }
-    
-    suspend fun getArtistDetails(artistId: String, songCount: Int = 10, albumCount: Int = 10): String {
+
+    suspend fun getArtistDetails(artistId: String, songCount: Int = 10, albumCount: Int = 10, page: Int = 1): String {
+        val apiPage = page - 1
+
         val url = buildUrl(
             call = ARTIST_DETAILS,
             params = mapOf(
@@ -161,7 +163,7 @@ class JioSaavnApi {
                 "token" to artistId,
                 "n_song" to songCount.toString(),
                 "n_album" to albumCount.toString(),
-                "page" to "0",
+                "p" to apiPage.toString(),  // Add page parameter
                 "sub_type" to "",
                 "category" to "",
                 "sort_order" to "",
@@ -174,7 +176,7 @@ class JioSaavnApi {
         )
         return executeRequest(url)
     }
-    
+
     suspend fun getPlaylistDetails(playlistId: String): String {
         val url = buildUrl(
             call = PLAYLIST_DETAILS,
