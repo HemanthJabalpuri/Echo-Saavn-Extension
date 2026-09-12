@@ -19,7 +19,9 @@ class SearchParser(
             albums = jsonObject["albums"]?.jsonObject?.get("data")?.jsonArray?.mapNotNull {
                 albumParser.parseAlbumToAlbum(it.jsonObject)
             } ?: emptyList(),
-            artists = artistParser.parseArtistResults(jsonObject["artists"]?.jsonObject?.get("data")?.jsonArray),
+            artists = jsonObject["artists"]?.jsonObject?.get("data")?.jsonArray?.mapNotNull {
+                artistParser.parseArtistToArtist(it.jsonObject)
+            } ?: emptyList(),
             playlists = jsonObject["playlists"]?.jsonObject?.get("data")?.jsonArray?.mapNotNull {
                 playlistParser.parsePlaylistToPlaylist(it.jsonObject)
             } ?: emptyList()

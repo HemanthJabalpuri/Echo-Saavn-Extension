@@ -34,13 +34,25 @@ class JioSaavnParser : BaseParser() {
     fun parseAlbumTracksFromJson(jsonString: String): List<Track> =
         albumParser.parseAlbumTracksFromJson(jsonString)
 
-
     private val artistParser = ArtistParser(trackParser, albumParser)
 
-    fun parseArtistSearchResults(jsonString: String): List<ArtistResult> =
+
+    fun parseArtistToArtist(obj: JsonObject): Artist? =
+        artistParser.parseArtistToArtist(obj)
+
+    fun parseArtistTopSongs(obj: JsonObject): List<Track> =
+        artistParser.parseArtistTopSongs(obj)
+
+    fun parseArtistTopAlbums(obj: JsonObject): List<Album> =
+        artistParser.parseArtistTopAlbums(obj)
+
+    fun parseArtistIsRadioPresent(obj: JsonObject): Boolean =
+        artistParser.parseArtistIsRadioPresent(obj)
+
+    fun parseArtistSearchResults(jsonString: String): List<Artist> =
         artistParser.parseArtistSearchResults(jsonString)
 
-    fun parseArtistDetails(jsonString: String): ArtistDetail? =
+    fun parseArtistDetails(jsonString: String): Artist? =
         artistParser.parseArtistDetails(jsonString)
 
 

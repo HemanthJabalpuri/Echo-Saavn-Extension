@@ -16,33 +16,8 @@ data class StreamUrls(
 data class SearchAllResult(
     val songs: List<Track>,
     val albums: List<Album>,
-    val artists: List<ArtistResult>,
+    val artists: List<Artist>,
     val playlists: List<Playlist>
-)
-
-// ===== ARTIST =====
-data class ArtistResult(
-    val id: String,
-    val name: String,
-    val image: String,
-    val permaUrl: String,
-    val type: String,
-    val role: String
-)
-
-data class ArtistDetail(
-    val id: String,
-    val name: String,
-    val subtitle: String,
-    val image: String,
-    val followerCount: String,
-    val type: String,
-    val isVerified: Boolean,
-    val dominantLanguage: String,
-    val dominantType: String,
-    val topSongs: List<Track>,
-    val topAlbums: List<Album>,
-    val isRadioPresent: Boolean = false
 )
 
 // ===== HOME =====

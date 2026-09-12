@@ -32,7 +32,7 @@ class QuickSearchClientImpl(
                 items.add(QuickSearchItem.Media(album, false))
             }
             results.artists.take(2).forEach { artist ->
-                items.add(QuickSearchItem.Media(artistResultToArtist(artist), false))
+                items.add(QuickSearchItem.Media(artist, false))
             }
             results.playlists.take(2).forEach { playlist ->
                 items.add(QuickSearchItem.Media(playlist, false))
@@ -123,7 +123,7 @@ class QuickSearchClientImpl(
                 shelves.add(Shelf.Lists.Items(
                     id = "search_artists",
                     title = "Artists",
-                    list = artists.map { artistResultToArtist(it) }
+                    list = artists
                 ))
             }
             
@@ -205,7 +205,7 @@ class QuickSearchClientImpl(
                 listOf(Shelf.Lists.Items(
                     id = "search_artists_tab",
                     title = "",
-                    list = artists.map { artistResultToArtist(it) }
+                    list = artists
                 )),
                 if (artists.size >= 20) (page + 1).toString() else null
             )

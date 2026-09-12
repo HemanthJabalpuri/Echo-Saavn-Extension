@@ -1,109 +1,119 @@
 package dev.brahmkshatriya.echo.extension.client
 
 import dev.brahmkshatriya.echo.common.clients.ArtistClient
-import dev.brahmkshatriya.echo.common.models.*
 import dev.brahmkshatriya.echo.common.helpers.Page
 import dev.brahmkshatriya.echo.common.helpers.PagedData
+import dev.brahmkshatriya.echo.common.models.*
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeed
-import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeedData
-
-import dev.brahmkshatriya.echo.extension.*
+import dev.brahmkshatriya.echo.extension.JioSaavnApi
+import dev.brahmkshatriya.echo.extension.JioSaavnParser
+import kotlinx.serialization.json.*
 
 class ArtistClientImpl(
     private val api: JioSaavnApi,
     private val parser: JioSaavnParser
 ) : ArtistClient {
 
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
+    // Cache fields (populated by loadArtist)
+    private var cachedArtistId: String? = null
+    private var cachedArtist: Artist? = null
+    private var cachedTopSongs: List<Track>? = null
+    private var cachedTopAlbums: List<Album>? = null
+
     override suspend fun loadArtist(artist: Artist): Artist {
-        return try {            
-            println("DEBUG: Loading artist with ID: ${artist.id}")
-            // Fetch only 10 songs for the initial metadata
-            val response = api.getArtistDetails(artist.id, songCount = 10, albumCount = 10, page = 1)
-            val artistDetail = parser.parseArtistDetails(response)
-                ?: throw Exception("Artist not found")
-            
-            artistDetailToArtist(artistDetail)
-        } catch (e: Exception) {
-            println("DEBUG: Failed to load artist ${artist.id}: ${e.message}")
-            throw Exception("Failed to load artist: ${e.message}")
+        // Cache hit
+        if (cachedArtistId == artist.id && cachedArtist != null) {
+            return cachedArtist!!
         }
+
+        // Fetch 10/10
+        val response = api.getArtistDetails(artist.id, songCount = 10, albumCount = 10, page = 1)
+        val jsonObject = json.parseToJsonElement(response).jsonObject
+
+        // Parse and cache
+        val parsedArtist = parser.parseArtistToArtist(jsonObject)
+            ?: throw Exception("Artist not found")
+        val topSongs = parser.parseArtistTopSongs(jsonObject)
+        val topAlbums = parser.parseArtistTopAlbums(jsonObject)
+
+        cachedArtistId = artist.id
+        cachedArtist = parsedArtist
+        cachedTopSongs = topSongs
+        cachedTopAlbums = topAlbums
+
+        return parsedArtist
     }
 
     override suspend fun loadFeed(artist: Artist): Feed<Shelf> {
-        return try {
-            // Fetch first page of songs and albums
-            val initialResponse = api.getArtistDetails(artist.id, songCount = 50, albumCount = 50, page = 1)
-            val artistDetail = parser.parseArtistDetails(initialResponse)
-                ?: return emptyList<Shelf>().toFeed()
-
-            val shelves = mutableListOf<Shelf>()
-
-            // Songs shelf with "More" button
-            val firstPageSongs = artistDetail.topSongs
-            if (firstPageSongs.isNotEmpty()) {
-                shelves.add(
-                    Shelf.Lists.Items(
-                        id = "artist_songs",
-                        title = "Top Songs",
-                        list = firstPageSongs,
-                        subtitle = "${firstPageSongs.size} songs",
-                        more = if (firstPageSongs.size >= 50) createMoreFeed(artist, "songs") else null
-                    )
-                )
-            }
-
-            // Albums shelf with "More" button
-            val firstPageAlbums = artistDetail.topAlbums
-            if (firstPageAlbums.isNotEmpty()) {
-                shelves.add(
-                    Shelf.Lists.Items(
-                        id = "artist_albums",
-                        title = "Top Albums",
-                        list = firstPageAlbums,
-                        subtitle = "${firstPageAlbums.size} albums",
-                        more = if (firstPageAlbums.size >= 50) createMoreFeed(artist, "albums") else null
-                    )
-                )
-            }
-
-            shelves.toFeed()
-        } catch (e: Exception) {
-            println("DEBUG: Failed to load artist feed: ${e.message}")
-            emptyList<Shelf>().toFeed()
+        // Cache hit - build shelves from cached data
+        if (cachedArtistId == artist.id && cachedTopSongs != null) {
+            return buildFeed(artist)
         }
+
+        // Cache miss - unexpected flow, return empty
+        return emptyList<Shelf>().toFeed()
+    }
+
+    private fun buildFeed(artist: Artist): Feed<Shelf> {
+        val shelves = mutableListOf<Shelf>()
+
+        val topSongs = cachedTopSongs ?: emptyList()
+        if (topSongs.isNotEmpty()) {
+            shelves.add(
+                Shelf.Lists.Items(
+                    id = "artist_songs",
+                    title = "Top Songs",
+                    list = topSongs,
+                    subtitle = "${topSongs.size} songs",
+                    more = createMoreFeed(artist, "songs")
+                )
+            )
+        }
+
+        val topAlbums = cachedTopAlbums ?: emptyList()
+        if (topAlbums.isNotEmpty()) {
+            shelves.add(
+                Shelf.Lists.Items(
+                    id = "artist_albums",
+                    title = "Top Albums",
+                    list = topAlbums,
+                    subtitle = "${topAlbums.size} albums",
+                    more = createMoreFeed(artist, "albums")
+                )
+            )
+        }
+
+        return shelves.toFeed()
     }
 
     private fun createMoreFeed(artist: Artist, type: String): Feed<Shelf> {
         return Feed(emptyList()) { _ ->
             Feed.Data(
                 PagedData.Continuous<Shelf> { continuation ->
-                    val page = continuation?.toIntOrNull() ?: 1
-                    
+                    val page = continuation?.toIntOrNull() ?: 2
                     try {
                         val response = api.getArtistDetails(
                             artist.id,
-                            songCount = if (type == "songs") 50 else 0,
-                            albumCount = if (type == "albums") 50 else 0,
+                            songCount = if (type == "songs") 10 else 0,
+                            albumCount = if (type == "albums") 10 else 0,
                             page = page
                         )
-                        val detail = parser.parseArtistDetails(response)
-                            ?: return@Continuous Page(emptyList(), null)
-                        
+                        val jsonObject = json.parseToJsonElement(response).jsonObject
+
                         val items = when (type) {
-                            "songs" -> detail.topSongs.map { it.toShelf() }
-                            "albums" -> detail.topAlbums.map { it.toShelf() }
+                            "songs" -> parser.parseArtistTopSongs(jsonObject).map { it.toShelf() }
+                            "albums" -> parser.parseArtistTopAlbums(jsonObject).map { it.toShelf() }
                             else -> emptyList()
                         }
-                        
-                        // If we got exactly 50 items, assume there's a next page
-                        val nextContinuation = if (items.size >= 50) {
-                            (page + 1).toString()
-                        } else {
-                            null
+
+                        if (items.isEmpty()) {
+                            return@Continuous Page(emptyList(), null)
                         }
-                        
+
+                        val nextContinuation = if (items.size >= 10) (page + 1).toString() else null
                         Page(items, nextContinuation)
-                        
                     } catch (e: Exception) {
                         Page(emptyList(), null)
                     }
@@ -111,5 +121,4 @@ class ArtistClientImpl(
             )
         }
     }
-
 }

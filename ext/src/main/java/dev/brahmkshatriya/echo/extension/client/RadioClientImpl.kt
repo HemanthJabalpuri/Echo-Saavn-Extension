@@ -7,10 +7,17 @@ import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeed
 import dev.brahmkshatriya.echo.extension.*
 import dev.brahmkshatriya.echo.extension.utils.*
 
+import kotlinx.serialization.json.*
+
 class RadioClientImpl(
     private val api: JioSaavnApi,
     private val parser: JioSaavnParser
 ) : RadioClient {
+
+    private val json = Json { 
+        ignoreUnknownKeys = true
+        isLenient = true
+    }
 
     override suspend fun radio(item: EchoMediaItem, context: EchoMediaItem?): Radio {
         return when (item) {
@@ -92,17 +99,17 @@ class RadioClientImpl(
             
             val primaryArtist = artists.first()
             println("DEBUG: Creating artist-based radio for: ${primaryArtist.name}")
-            
+
             val artistResponse = api.getArtistDetails(primaryArtist.id, songCount = 50, albumCount = 0)
-            val artistDetail = parser.parseArtistDetails(artistResponse)
-                ?: throw Exception("Could not load artist details")
-            
-            if (artistDetail.topSongs.isEmpty()) {
+            val jsonObject = json.parseToJsonElement(artistResponse).jsonObject  // ← Parse JSON
+            val topSongs = parser.parseArtistTopSongs(jsonObject)  // ← Get top songs
+
+            if (topSongs.isEmpty()) {
                 throw Exception("Artist has no songs available")
             }
-            
-            val trackIds = artistDetail.topSongs.map { it.id }.joinToString(",")
-            
+
+            val trackIds = topSongs.map { it.id }.joinToString(",")
+
             Radio(
                 id = "radio_${track.id}",
                 title = "${track.title} Radio",
@@ -138,27 +145,26 @@ class RadioClientImpl(
 
     internal suspend fun createRadioFromArtist(artist: Artist): Radio {
         return try {
-            // Fetch artist details to check radio availability
             val response = api.getArtistDetails(artist.id, songCount = 50, albumCount = 10)
-            val artistDetail = parser.parseArtistDetails(response)
+            val jsonObject = json.parseToJsonElement(response).jsonObject
+
+            val artistData = parser.parseArtistToArtist(jsonObject)
                 ?: throw Exception("Artist not found")
-            
-            // Check if radio is available
-            if (artistDetail.isRadioPresent) {
+            val topSongs = parser.parseArtistTopSongs(jsonObject)
+            val isRadioPresent = parser.parseArtistIsRadioPresent(jsonObject)
+            val dominantLanguage = artistData.extras["dominantLanguage"] ?: "hindi"
+
+            if (isRadioPresent) {
                 try {
-                    // Step 1: Create radio station
-                    val language = artistDetail.dominantLanguage.takeIf { it.isNotBlank() } ?: "hindi"
-                    val stationResponse = api.createArtistRadioStation(artistDetail.name, language)
+                    val stationResponse = api.createArtistRadioStation(artistData.name, dominantLanguage)
                     val stationId = parser.parseArtistRadioStationId(stationResponse)
-                    
+
                     if (stationId != null) {
-                        // Step 2: Get radio songs
                         val songsResponse = api.getRadioSongs(stationId, limit = 20)
                         val radioSongs = parser.parseRadioSongs(songsResponse)
-                        
+
                         if (radioSongs.isNotEmpty()) {
                             val trackIds = radioSongs.map { it.id }.joinToString(",")
-                            
                             return Radio(
                                 id = "radio_${artist.id}",
                                 title = "${artist.name} Radio",
@@ -168,18 +174,13 @@ class RadioClientImpl(
                             )
                         }
                     }
-                    
-                    // If we reach here, something failed in radio creation
-                    println("DEBUG: Radio creation failed for ${artist.name}, falling back to top songs")
-                    
                 } catch (e: Exception) {
-                    println("DEBUG: Radio API failed for ${artist.name}: ${e.message}, falling back to top songs")
+                    println("DEBUG: Radio API failed: ${e.message}")
                 }
             }
-            
-            // Fallback: Use top songs
-            val trackIds = artistDetail.topSongs.map { it.id }.joinToString(",")
-            
+
+            // Fallback
+            val trackIds = topSongs.map { it.id }.joinToString(",")
             Radio(
                 id = "radio_${artist.id}",
                 title = "${artist.name} Radio",
@@ -187,9 +188,7 @@ class RadioClientImpl(
                 cover = artist.cover,
                 extras = mapOf("tracks" to trackIds)
             )
-            
         } catch (e: Exception) {
-            println("DEBUG: Failed to create radio from artist: ${e.message}")
             throw Exception("Failed to create radio: ${e.message}")
         }
     }
