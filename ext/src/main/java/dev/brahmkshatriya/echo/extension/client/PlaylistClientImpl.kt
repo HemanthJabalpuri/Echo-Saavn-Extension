@@ -44,7 +44,7 @@ class PlaylistClientImpl(
                 return emptyList<Track>().toFeed() as Feed<Track>
             }
             
-            val tracks = playlistDetail.songs.map { songDetailToTrack(it) }
+            val tracks = playlistDetail.songs
             println("DEBUG: Converted ${tracks.size} songs to tracks")
             tracks.toFeed() as Feed<Track>
         } catch (e: Exception) {

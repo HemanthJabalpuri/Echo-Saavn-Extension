@@ -82,7 +82,7 @@ class AlbumParser(
         val primaryArtists = artistMap?.get("primary_artists")?.jsonArray?.let { extractArtistNames(it) } ?: ""
         val primaryArtistsId = artistMap?.get("primary_artists")?.jsonArray?.let { extractArtistIds(it) } ?: ""
 
-        val songs = obj["list"]?.jsonArray?.mapNotNull { trackParser.parseSongDetail(it.jsonObject) } ?: emptyList()
+        val songs = obj["list"]?.jsonArray?.mapNotNull { trackParser.parseSongToTrack(it.jsonObject) } ?: emptyList()
         val songCount = moreInfo?.get("song_count")?.jsonPrimitive?.content ?: "0"
 
         return AlbumDetail(

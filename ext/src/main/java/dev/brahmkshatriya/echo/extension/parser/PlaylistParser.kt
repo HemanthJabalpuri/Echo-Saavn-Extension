@@ -69,7 +69,7 @@ class PlaylistParser(
         val id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return null
         val moreInfo = obj["more_info"]?.jsonObject
 
-        val songs = obj["list"]?.jsonArray?.mapNotNull { trackParser.parseSongDetail(it.jsonObject) } ?: emptyList()
+        val songs = obj["list"]?.jsonArray?.mapNotNull { trackParser.parseSongToTrack(it.jsonObject) } ?: emptyList()
         val songCount = moreInfo?.get("song_count")?.jsonPrimitive?.content
             ?: obj["list_count"]?.jsonPrimitive?.content
             ?: "0"

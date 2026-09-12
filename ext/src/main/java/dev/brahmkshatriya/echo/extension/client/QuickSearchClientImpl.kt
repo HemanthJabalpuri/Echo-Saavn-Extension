@@ -26,7 +26,7 @@ class QuickSearchClientImpl(
             
             val items = mutableListOf<QuickSearchItem>()
             results.songs.take(3).forEach { song ->
-                items.add(QuickSearchItem.Media(songResultToTrack(song), false))
+                items.add(QuickSearchItem.Media(song, false))
             }
             results.albums.take(3).forEach { album ->
                 items.add(QuickSearchItem.Media(albumResultToAlbum(album), false))
@@ -107,7 +107,7 @@ class QuickSearchClientImpl(
                 shelves.add(Shelf.Lists.Tracks(
                     id = "search_songs",
                     title = "Songs",
-                    list = songs.map { songResultToTrack(it) }
+                    list = songs
                 ))
             }
             
@@ -165,7 +165,7 @@ class QuickSearchClientImpl(
                 listOf(Shelf.Lists.Tracks(
                     id = "search_songs_tab",
                     title = "",
-                    list = songs.map { songResultToTrack(it) }
+                    list = songs
                 )),
                 if (songs.size >= 20) (page + 1).toString() else null
             )

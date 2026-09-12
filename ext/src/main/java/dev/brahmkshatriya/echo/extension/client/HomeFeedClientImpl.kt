@@ -44,7 +44,7 @@ class HomeFeedClientImpl(
                 if (homeData.nowTrending.isNotEmpty()) {
                     val trendingItems = homeData.nowTrending.map { mediaItem ->
                         when (mediaItem) {
-                            is MediaItem.Song -> songResultToTrack(mediaItem.data)
+                            is MediaItem.Track -> mediaItem.data
                             is MediaItem.Album -> albumResultToAlbum(mediaItem.data)
                             is MediaItem.Playlist -> playlistResultToPlaylist(mediaItem.data)
                         }
@@ -69,7 +69,7 @@ class HomeFeedClientImpl(
                     val newAlbumItems = homeData.newAlbums.map { mediaItem ->
                         when (mediaItem) {
                             is MediaItem.Album -> albumResultToAlbum(mediaItem.data)
-                            is MediaItem.Song -> songResultToTrack(mediaItem.data)
+                            is MediaItem.Track -> mediaItem.data
                             is MediaItem.Playlist -> playlistResultToPlaylist(mediaItem.data)
                         }
                     }

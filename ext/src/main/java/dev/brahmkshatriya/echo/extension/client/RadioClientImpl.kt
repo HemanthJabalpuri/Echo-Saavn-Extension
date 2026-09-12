@@ -33,7 +33,7 @@ class RadioClientImpl(
                     val response = api.getSongDetails(id)
                     val songDetail = parser.parseSongDetails(response).firstOrNull()
                     if (songDetail != null) {
-                        tracks.add(songDetailToTrack(songDetail))
+                        tracks.add(songDetail)
                     }
                 } catch (e: Exception) {
                     println("DEBUG: Failed to load track $id for radio: ${e.message}")

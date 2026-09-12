@@ -32,7 +32,7 @@ class AlbumClientImpl(
             val albumDetail = parser.parseAlbumDetails(response)
                 ?: return null
             
-            val tracks = albumDetail.songs.map { songDetailToTrack(it) }
+            val tracks = albumDetail.songs
             tracks.toFeed() as Feed<Track>
         } catch (e: Exception) {
             println("DEBUG: Failed to load album tracks: ${e.message}")

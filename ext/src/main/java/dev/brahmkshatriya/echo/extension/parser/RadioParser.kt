@@ -1,5 +1,7 @@
 package dev.brahmkshatriya.echo.extension.parser
 
+import dev.brahmkshatriya.echo.common.models.Track
+
 import kotlinx.serialization.json.*
 
 class RadioParser(
@@ -19,20 +21,20 @@ class RadioParser(
         }
     }
     
-    fun parseSongSuggestions(jsonString: String): List<SongResult> {
+    fun parseSongSuggestions(jsonString: String): List<Track> {
         return try {
             println("DEBUG: Parsing song suggestions (first 500 chars): ${jsonString.take(500)}")
             val jsonElement = json.parseToJsonElement(jsonString)
             val jsonObject = jsonElement.jsonObject
             
-            val songs = mutableListOf<SongResult>()
+            val songs = mutableListOf<Track>()
             
             jsonObject.forEach { (key, value) ->
                 if (key != "stationid") {
                     try {
                         val songObject = value.jsonObject["song"]?.jsonObject
                         if (songObject != null) {
-                            val song = trackParser.parseSongFromJson(songObject)
+                            val song = trackParser.parseSongToTrack(songObject)
                             song?.let { songs.add(it) }
                         }
                     } catch (e: Exception) {
@@ -50,7 +52,7 @@ class RadioParser(
         }
     }
 
-    fun parseSimilarSongs(jsonString: String): List<SongResult> {
+    fun parseSimilarSongs(jsonString: String): List<Track> {
         return try {
             println("DEBUG: Similar songs raw response (first 500 chars): ${jsonString.take(500)}")
             val jsonElement = json.parseToJsonElement(jsonString)
@@ -59,7 +61,7 @@ class RadioParser(
             val jsonArray = jsonElement.jsonArray
             println("DEBUG: Similar songs array size: ${jsonArray.size}")
             
-            val results = trackParser.parseSongResults(jsonArray)
+            val results = jsonArray.mapNotNull { trackParser.parseSongToTrack(it.jsonObject) }
             println("DEBUG: Parsed ${results.size} similar songs")
             results
         } catch (e: Exception) {
@@ -69,10 +71,10 @@ class RadioParser(
         }
     }
 
-    fun parseRadioSongs(response: String): List<SongDetail> {
+    fun parseRadioSongs(response: String): List<Track> {
         return try {
             val jsonObject = json.parseToJsonElement(response).jsonObject
-            val songs = mutableListOf<SongDetail>()
+            val songs = mutableListOf<Track>()
             
             jsonObject.keys.forEach { key ->
                 try {
@@ -81,7 +83,7 @@ class RadioParser(
                     if (value is JsonObject) {
                         val songObject = value["song"] as? JsonObject
                         if (songObject != null) {
-                            trackParser.parseSongDetail(songObject)?.let { songs.add(it) }
+                            trackParser.parseSongToTrack(songObject)?.let { songs.add(it) }
                         }
                     }
                 } catch (e: Exception) {

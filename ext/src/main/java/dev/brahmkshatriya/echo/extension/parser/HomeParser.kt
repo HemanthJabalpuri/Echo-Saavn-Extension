@@ -24,7 +24,7 @@ class HomeParser(
                     val type = obj["type"]?.jsonPrimitive?.content ?: ""
 
                     when (type) {
-                        "song" -> trackParser.parseSongFromJson(obj)?.let { nowTrending.add(MediaItem.Song(it)) }
+                        "song" -> trackParser.parseSongFromJson(obj)?.let { nowTrending.add(MediaItem.Track(it)) }
                         "album" -> albumParser.parseAlbumFromJson(obj)?.let { nowTrending.add(MediaItem.Album(it)) }
                         "playlist" -> playlistParser.parsePlaylistFromJson(obj)?.let { nowTrending.add(MediaItem.Playlist(it)) }
                     }
@@ -50,7 +50,7 @@ class HomeParser(
 
                     when (type) {
                         "album" -> albumParser.parseAlbumFromJson(obj)?.let { newAlbums.add(MediaItem.Album(it)) }
-                        "song" -> trackParser.parseSongFromJson(obj)?.let { newAlbums.add(MediaItem.Song(it)) }
+                        "song" -> trackParser.parseSongFromJson(obj)?.let { newAlbums.add(MediaItem.Track(it)) }
                     }
                 } catch (e: Exception) {
                     println("DEBUG: Failed to parse new album: ${e.message}")

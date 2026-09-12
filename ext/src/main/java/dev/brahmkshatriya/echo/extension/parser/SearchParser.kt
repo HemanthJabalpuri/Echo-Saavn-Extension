@@ -13,7 +13,7 @@ class SearchParser(
         val jsonObject = json.parseToJsonElement(jsonString).jsonObject
         
         return SearchAllResult(
-            songs = trackParser.parseSongResults(jsonObject["results"]?.jsonArray),
+            songs = trackParser.parseSongSearchResults(jsonString),
             albums = albumParser.parseAlbumResults(jsonObject["albums"]?.jsonObject?.get("data")?.jsonArray),
             artists = artistParser.parseArtistResults(jsonObject["artists"]?.jsonObject?.get("data")?.jsonArray),
             playlists = playlistParser.parsePlaylistResults(jsonObject["playlists"]?.jsonObject?.get("data")?.jsonArray)

@@ -39,7 +39,7 @@ class ArtistClientImpl(
             val shelves = mutableListOf<Shelf>()
 
             // Songs shelf with "More" button
-            val firstPageSongs = artistDetail.topSongs.map { songDetailToTrack(it) }
+            val firstPageSongs = artistDetail.topSongs
             if (firstPageSongs.isNotEmpty()) {
                 shelves.add(
                     Shelf.Lists.Items(
@@ -90,7 +90,7 @@ class ArtistClientImpl(
                             ?: return@Continuous Page(emptyList(), null)
                         
                         val items = when (type) {
-                            "songs" -> detail.topSongs.map { songDetailToTrack(it).toShelf() }
+                            "songs" -> detail.topSongs.map { it.toShelf() }
                             "albums" -> detail.topAlbums.map { albumResultToAlbum(it).toShelf() }
                             else -> emptyList()
                         }

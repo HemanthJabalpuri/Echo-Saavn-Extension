@@ -1,15 +1,17 @@
 package dev.brahmkshatriya.echo.extension
 
+import dev.brahmkshatriya.echo.common.models.Track
+
 import dev.brahmkshatriya.echo.extension.parser.*
 
 class JioSaavnParser : BaseParser() {
 
     private val trackParser = TrackParser()
 
-    fun parseSongSearchResults(jsonString: String): List<SongResult> =
+    fun parseSongSearchResults(jsonString: String): List<Track> =
         trackParser.parseSongSearchResults(jsonString)
 
-    fun parseSongDetails(jsonString: String): List<SongDetail> =
+    fun parseSongDetails(jsonString: String): List<Track> =
         trackParser.parseSongDetails(jsonString)
 
 
@@ -31,7 +33,7 @@ class JioSaavnParser : BaseParser() {
         artistParser.parseArtistDetails(jsonString)
 
 
-    private val playlistParser = PlaylistParser(trackParser)  // ← Add this
+    private val playlistParser = PlaylistParser(trackParser)
 
     fun parsePlaylistSearchResults(jsonString: String): List<PlaylistResult> =
         playlistParser.parsePlaylistSearchResults(jsonString)
@@ -40,7 +42,7 @@ class JioSaavnParser : BaseParser() {
         playlistParser.parsePlaylistDetails(jsonString)
 
 
-    private val searchParser = SearchParser(trackParser, albumParser, artistParser, playlistParser)  // ← Add this
+    private val searchParser = SearchParser(trackParser, albumParser, artistParser, playlistParser)
 
     fun parseSearchAll(jsonString: String): SearchAllResult =
         searchParser.parseSearchAll(jsonString)
@@ -57,13 +59,13 @@ class JioSaavnParser : BaseParser() {
     fun parseStationId(jsonString: String): String? =
         radioParser.parseStationId(jsonString)
 
-    fun parseSongSuggestions(jsonString: String): List<SongResult> =
+    fun parseSongSuggestions(jsonString: String): List<Track> =
         radioParser.parseSongSuggestions(jsonString)
 
-    fun parseSimilarSongs(jsonString: String): List<SongResult> =
+    fun parseSimilarSongs(jsonString: String): List<Track> =
         radioParser.parseSimilarSongs(jsonString)
 
-    fun parseRadioSongs(jsonString: String): List<SongDetail> =
+    fun parseRadioSongs(jsonString: String): List<Track> =
         radioParser.parseRadioSongs(jsonString)
 
     fun parseArtistRadioStationId(jsonString: String): String? =

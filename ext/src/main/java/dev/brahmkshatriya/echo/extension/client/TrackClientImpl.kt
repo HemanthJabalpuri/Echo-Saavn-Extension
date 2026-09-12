@@ -14,19 +14,9 @@ class TrackClientImpl(
 ) : TrackClient {
 
     override suspend fun loadTrack(track: Track, isDownload: Boolean): Track {
-        return try {
-            println("DEBUG: Loading track with ID: ${track.id}")
-            val response = api.getSongDetails(track.id)
-            val songDetails = parser.parseSongDetails(response).firstOrNull()
-                ?: throw Exception("Track not found")
-            
-            songDetailToTrack(songDetails)
-        } catch (e: Exception) {
-            println("DEBUG: Failed to load track ${track.id}: ${e.message}")
-            throw Exception("Failed to load track: ${e.message}")
-        }
+        return track
     }
-    
+
     override suspend fun loadStreamableMedia(
         streamable: Streamable, 
         isDownload: Boolean
@@ -106,7 +96,7 @@ class TrackClientImpl(
                     val songs = parser.parseSongSuggestions(suggestionsResponse)
                     
                     if (songs.isNotEmpty()) {
-                        val tracks = songs.map { songResultToTrack(it) }
+                        val tracks = songs
                         
                         return listOf(
                             Shelf.Lists.Tracks(
