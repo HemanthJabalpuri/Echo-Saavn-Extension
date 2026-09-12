@@ -5,6 +5,8 @@ import dev.brahmkshatriya.echo.common.models.*
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeed
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeedData
 
+import dev.brahmkshatriya.echo.extension.parser.MediaItem
+
 import dev.brahmkshatriya.echo.extension.*
 
 class HomeFeedClientImpl(

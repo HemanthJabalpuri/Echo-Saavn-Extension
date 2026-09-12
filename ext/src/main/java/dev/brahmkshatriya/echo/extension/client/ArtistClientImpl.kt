@@ -15,7 +15,7 @@ class ArtistClientImpl(
 ) : ArtistClient {
 
     override suspend fun loadArtist(artist: Artist): Artist {
-        return try {
+        return try {            
             println("DEBUG: Loading artist with ID: ${artist.id}")
             // Fetch only 10 songs for the initial metadata
             val response = api.getArtistDetails(artist.id, songCount = 10, albumCount = 10, page = 1)
@@ -44,7 +44,7 @@ class ArtistClientImpl(
                 shelves.add(
                     Shelf.Lists.Items(
                         id = "artist_songs",
-                        title = "Popular Songs",
+                        title = "Top Songs",
                         list = firstPageSongs,
                         subtitle = "${firstPageSongs.size} songs",
                         more = if (firstPageSongs.size >= 50) createMoreFeed(artist, "songs") else null
@@ -58,7 +58,7 @@ class ArtistClientImpl(
                 shelves.add(
                     Shelf.Lists.Items(
                         id = "artist_albums",
-                        title = "Albums",
+                        title = "Top Albums",
                         list = firstPageAlbums,
                         subtitle = "${firstPageAlbums.size} albums",
                         more = if (firstPageAlbums.size >= 50) createMoreFeed(artist, "albums") else null

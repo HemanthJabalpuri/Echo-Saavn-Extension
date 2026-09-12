@@ -127,7 +127,6 @@ class JioSaavnApi {
             params = mapOf(
                 "type" to "song",
                 "token" to songId,
-                "cc" to "in",
                 "_format" to "json",
                 "_marker" to "0",
                 "api_version" to "4",
@@ -143,7 +142,6 @@ class JioSaavnApi {
             params = mapOf(
                 "type" to "album",
                 "token" to albumId,
-                "cc" to "in",
                 "_format" to "json",
                 "_marker" to "0",
                 "api_version" to "4",
@@ -165,9 +163,8 @@ class JioSaavnApi {
                 "n_album" to albumCount.toString(),
                 "p" to apiPage.toString(),  // Add page parameter
                 "sub_type" to "",
-                "category" to "",
-                "sort_order" to "",
-                "cc" to "in",
+                "category" to "popularity",
+                "sort_order" to "asc",
                 "_format" to "json",
                 "_marker" to "0",
                 "api_version" to "4",
@@ -185,7 +182,6 @@ class JioSaavnApi {
                 "token" to playlistId,
                 "p" to "1",
                 "n" to "100",
-                "cc" to "in",
                 "_format" to "json",
                 "_marker" to "0",
                 "api_version" to "4",
