@@ -25,7 +25,7 @@ class HomeParser(
 
                     when (type) {
                         "song" -> trackParser.parseSongFromJson(obj)?.let { nowTrending.add(MediaItem.Track(it)) }
-                        "album" -> albumParser.parseAlbumFromJson(obj)?.let { nowTrending.add(MediaItem.Album(it)) }
+                        "album" -> albumParser.parseAlbumToAlbum(obj)?.let { nowTrending.add(MediaItem.Album(it)) }
                         "playlist" -> playlistParser.parsePlaylistFromJson(obj)?.let { nowTrending.add(MediaItem.Playlist(it)) }
                     }
                 } catch (e: Exception) {
@@ -49,7 +49,7 @@ class HomeParser(
                     val type = obj["type"]?.jsonPrimitive?.content ?: ""
 
                     when (type) {
-                        "album" -> albumParser.parseAlbumFromJson(obj)?.let { newAlbums.add(MediaItem.Album(it)) }
+                        "album" -> albumParser.parseAlbumToAlbum(obj)?.let { newAlbums.add(MediaItem.Album(it)) }
                         "song" -> trackParser.parseSongFromJson(obj)?.let { newAlbums.add(MediaItem.Track(it)) }
                     }
                 } catch (e: Exception) {

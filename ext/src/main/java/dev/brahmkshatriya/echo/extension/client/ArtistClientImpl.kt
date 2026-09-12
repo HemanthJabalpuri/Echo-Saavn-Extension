@@ -53,7 +53,7 @@ class ArtistClientImpl(
             }
 
             // Albums shelf with "More" button
-            val firstPageAlbums = artistDetail.topAlbums.map { albumResultToAlbum(it) }
+            val firstPageAlbums = artistDetail.topAlbums
             if (firstPageAlbums.isNotEmpty()) {
                 shelves.add(
                     Shelf.Lists.Items(
@@ -91,7 +91,7 @@ class ArtistClientImpl(
                         
                         val items = when (type) {
                             "songs" -> detail.topSongs.map { it.toShelf() }
-                            "albums" -> detail.topAlbums.map { albumResultToAlbum(it).toShelf() }
+                            "albums" -> detail.topAlbums.map { it.toShelf() }
                             else -> emptyList()
                         }
                         

@@ -46,7 +46,7 @@ class ArtistParser(
         val id = obj["urls"]?.jsonObject?.get("overview")?.jsonPrimitive?.content?.substringAfterLast("/") ?: return null
 
         val topSongs = obj["topSongs"]?.jsonArray?.mapNotNull { trackParser.parseSongToTrack(it.jsonObject) } ?: emptyList()
-        val topAlbums = obj["topAlbums"]?.jsonArray?.mapNotNull { albumParser.parseAlbumResults(buildJsonArray { add(it) })?.firstOrNull() } ?: emptyList()
+        val topAlbums = obj["topAlbums"]?.jsonArray?.mapNotNull { albumParser.parseAlbumToAlbum(it.jsonObject) } ?: emptyList()
         
         // Extract isRadioPresent (top-level boolean)
         val isRadioPresent = obj["isRadioPresent"]?.jsonPrimitive?.booleanOrNull ?: false

@@ -119,11 +119,10 @@ class RadioClientImpl(
     private suspend fun createRadioFromAlbum(album: Album): Radio {
         return try {
             val response = api.getAlbumDetails(album.id)
-            val albumDetail = parser.parseAlbumDetails(response)
-                ?: throw Exception("Album not found")
-            
-            val trackIds = albumDetail.songs.map { it.id }.joinToString(",")
-            
+            val tracks = parser.parseAlbumTracksFromJson(response)
+
+            val trackIds = tracks.map { it.id }.joinToString(",")
+
             Radio(
                 id = "radio_${album.id}",
                 title = "${album.title} Radio",
@@ -136,7 +135,7 @@ class RadioClientImpl(
             throw Exception("Failed to create radio: ${e.message}")
         }
     }
-    
+
     internal suspend fun createRadioFromArtist(artist: Artist): Radio {
         return try {
             // Fetch artist details to check radio availability

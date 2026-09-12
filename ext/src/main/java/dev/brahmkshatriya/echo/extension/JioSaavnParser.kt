@@ -1,8 +1,10 @@
 package dev.brahmkshatriya.echo.extension
 
-import dev.brahmkshatriya.echo.common.models.Track
+import dev.brahmkshatriya.echo.common.models.*
 
 import dev.brahmkshatriya.echo.extension.parser.*
+
+import kotlinx.serialization.json.*
 
 class JioSaavnParser : BaseParser() {
 
@@ -15,13 +17,22 @@ class JioSaavnParser : BaseParser() {
         trackParser.parseSongDetails(jsonString)
 
 
-    private val albumParser = AlbumParser(trackParser)  // ← Pass trackParser
+    private val albumParser = AlbumParser(trackParser)
 
-    fun parseAlbumSearchResults(jsonString: String): List<AlbumResult> =
+    fun parseAlbumToAlbum(obj: JsonObject): Album? =
+        albumParser.parseAlbumToAlbum(obj)
+
+    fun parseAlbumTracks(obj: JsonObject): List<Track> =
+        albumParser.parseAlbumTracks(obj)
+    
+    fun parseAlbumSearchResults(jsonString: String): List<Album> =
         albumParser.parseAlbumSearchResults(jsonString)
 
-    fun parseAlbumDetails(jsonString: String): AlbumDetail? =
+    fun parseAlbumDetails(jsonString: String): Album? =
         albumParser.parseAlbumDetails(jsonString)
+
+    fun parseAlbumTracksFromJson(jsonString: String): List<Track> =
+        albumParser.parseAlbumTracksFromJson(jsonString)
 
 
     private val artistParser = ArtistParser(trackParser, albumParser)

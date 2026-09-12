@@ -5,42 +5,50 @@ import dev.brahmkshatriya.echo.common.models.*
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeed
 
 import dev.brahmkshatriya.echo.extension.*
+//import dev.brahmkshatriya.echo.extension.parser.*
+import kotlinx.serialization.json.*
 
 class AlbumClientImpl(
     private val api: JioSaavnApi,
     private val parser: JioSaavnParser
 ) : AlbumClient {
 
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
+    // One-album cache
+    private var cachedAlbumId: String? = null
+    private var cachedAlbum: Album? = null
+    private var cachedTracks: List<Track>? = null
+
     override suspend fun loadAlbum(album: Album): Album {
-        return try {
-            println("DEBUG: Loading album with ID: ${album.id}")
-            val response = api.getAlbumDetails(album.id)
-            val albumDetail = parser.parseAlbumDetails(response)
-                ?: throw Exception("Album not found")
-            
-            albumDetailToAlbum(albumDetail)
-        } catch (e: Exception) {
-            println("DEBUG: Failed to load album ${album.id}: ${e.message}")
-            throw Exception("Failed to load album: ${e.message}")
+        // Cache hit
+        if (cachedAlbumId == album.id && cachedAlbum != null) {
+            return cachedAlbum!!
         }
+
+        // Cache miss - fetch, parse, cache
+        val response = api.getAlbumDetails(album.id)
+        val jsonObject = json.parseToJsonElement(response).jsonObject
+        val parsedAlbum = parser.parseAlbumToAlbum(jsonObject)
+            ?: throw Exception("Album not found")
+        val tracks = parser.parseAlbumTracks(jsonObject)
+
+        cachedAlbumId = album.id
+        cachedAlbum = parsedAlbum
+        cachedTracks = tracks
+
+        return parsedAlbum
     }
 
     override suspend fun loadTracks(album: Album): Feed<Track>? {
-        return try {
-            println("DEBUG: Loading tracks for album: ${album.id}")
-            val response = api.getAlbumDetails(album.id)
-            val albumDetail = parser.parseAlbumDetails(response)
-                ?: return null
-            
-            val tracks = albumDetail.songs
-            tracks.toFeed() as Feed<Track>
-        } catch (e: Exception) {
-            println("DEBUG: Failed to load album tracks: ${e.message}")
-            null
+        // Cache hit
+        if (cachedAlbumId == album.id && cachedTracks != null) {
+            return cachedTracks!!.toFeed() as Feed<Track>
         }
+
+        // Cache miss - unexpected flow, return empty
+        return emptyList<Track>().toFeed() as Feed<Track>
     }
 
-    override suspend fun loadFeed(album: Album): Feed<Shelf>? {
-        return null
-    }
+    override suspend fun loadFeed(album: Album): Feed<Shelf>? = null
 }

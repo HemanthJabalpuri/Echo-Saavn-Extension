@@ -1,6 +1,6 @@
 package dev.brahmkshatriya.echo.extension.parser
 
-import dev.brahmkshatriya.echo.common.models.Track
+import dev.brahmkshatriya.echo.common.models.*
 
 import kotlinx.serialization.json.*
 
@@ -15,42 +15,9 @@ data class StreamUrls(
 // ===== SEARCH =====
 data class SearchAllResult(
     val songs: List<Track>,
-    val albums: List<AlbumResult>,
+    val albums: List<Album>,
     val artists: List<ArtistResult>,
     val playlists: List<PlaylistResult>
-)
-
-// ===== ALBUM =====
-data class AlbumResult(
-    val id: String,
-    val title: String,
-    val subtitle: String,
-    val image: String,
-    val permaUrl: String,
-    val type: String,
-    val language: String,
-    val year: String,
-    val explicitContent: Boolean,
-    val songCount: String,
-    val primaryArtists: String = "",
-    val primaryArtistsId: String = ""
-)
-
-data class AlbumDetail(
-    val id: String,
-    val title: String,
-    val subtitle: String,
-    val image: String,
-    val permaUrl: String,
-    val type: String,
-    val language: String,
-    val year: String,
-    val explicitContent: Boolean,
-    val primaryArtists: String,
-    val primaryArtistsId: String,
-    val songCount: String,
-    val releaseDate: String?,
-    val songs: List<Track>
 )
 
 // ===== ARTIST =====
@@ -74,7 +41,7 @@ data class ArtistDetail(
     val dominantLanguage: String,
     val dominantType: String,
     val topSongs: List<Track>,
-    val topAlbums: List<AlbumResult>,
+    val topAlbums: List<Album>,
     val isRadioPresent: Boolean = false
 )
 
@@ -115,6 +82,6 @@ data class HomeData(
 
 sealed class MediaItem {
     data class Track(val data: dev.brahmkshatriya.echo.common.models.Track) : MediaItem()
-    data class Album(val data: AlbumResult) : MediaItem()
+    data class Album(val data: dev.brahmkshatriya.echo.common.models.Album) : MediaItem()
     data class Playlist(val data: PlaylistResult) : MediaItem()
 }
