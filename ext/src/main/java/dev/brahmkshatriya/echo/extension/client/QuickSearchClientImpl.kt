@@ -35,7 +35,7 @@ class QuickSearchClientImpl(
                 items.add(QuickSearchItem.Media(artistResultToArtist(artist), false))
             }
             results.playlists.take(2).forEach { playlist ->
-                items.add(QuickSearchItem.Media(playlistResultToPlaylist(playlist), false))
+                items.add(QuickSearchItem.Media(playlist, false))
             }
             
             items
@@ -131,7 +131,7 @@ class QuickSearchClientImpl(
                 shelves.add(Shelf.Lists.Items(
                     id = "search_playlists",
                     title = "Playlists",
-                    list = playlists.map { playlistResultToPlaylist(it) }
+                    list = playlists
                 ))
             }
             
@@ -225,7 +225,7 @@ class QuickSearchClientImpl(
                 listOf(Shelf.Lists.Items(
                     id = "search_playlists_tab",
                     title = "",
-                    list = playlists.map { playlistResultToPlaylist(it) }
+                    list = playlists
                 )),
                 if (playlists.size >= 20) (page + 1).toString() else null
             )

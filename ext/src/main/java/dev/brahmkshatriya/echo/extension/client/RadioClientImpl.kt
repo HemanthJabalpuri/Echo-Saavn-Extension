@@ -197,11 +197,10 @@ class RadioClientImpl(
     private suspend fun createRadioFromPlaylist(playlist: Playlist): Radio {
         return try {
             val response = api.getPlaylistDetails(playlist.id)
-            val playlistDetail = parser.parsePlaylistDetails(response)
-                ?: throw Exception("Playlist not found")
-            
-            val trackIds = playlistDetail.songs.map { it.id }.joinToString(",")
-            
+            val tracks = parser.parsePlaylistTracksFromJson(response)
+
+            val trackIds = tracks.map { it.id }.joinToString(",")
+
             Radio(
                 id = "radio_${playlist.id}",
                 title = "${playlist.title} Radio",

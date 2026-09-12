@@ -46,7 +46,7 @@ class HomeFeedClientImpl(
                         when (mediaItem) {
                             is MediaItem.Track -> mediaItem.data
                             is MediaItem.Album -> mediaItem.data
-                            is MediaItem.Playlist -> playlistResultToPlaylist(mediaItem.data)
+                            is MediaItem.Playlist -> mediaItem.data
                         }
                     }
                     shelves.add(Shelf.Lists.Items(
@@ -60,7 +60,7 @@ class HomeFeedClientImpl(
                     shelves.add(Shelf.Lists.Items(
                         id = "top_playlists",
                         title = "Top Playlists",
-                        list = homeData.topPlaylists.map { playlistResultToPlaylist(it) },
+                        list = homeData.topPlaylists,
                         subtitle = "Curated playlists for you"
                     ))
                 }
@@ -70,7 +70,7 @@ class HomeFeedClientImpl(
                         when (mediaItem) {
                             is MediaItem.Album -> mediaItem.data
                             is MediaItem.Track -> mediaItem.data
-                            is MediaItem.Playlist -> playlistResultToPlaylist(mediaItem.data)
+                            is MediaItem.Playlist -> mediaItem.data
                         }
                     }
                     shelves.add(Shelf.Lists.Items(
@@ -85,7 +85,7 @@ class HomeFeedClientImpl(
                     shelves.add(Shelf.Lists.Items(
                         id = "top_charts",
                         title = "Top Charts",
-                        list = homeData.topCharts.map { playlistResultToPlaylist(it) },
+                        list = homeData.topCharts,
                         subtitle = "Trending charts"
                     ))
                 }

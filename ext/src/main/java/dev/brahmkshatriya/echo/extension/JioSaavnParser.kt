@@ -46,11 +46,22 @@ class JioSaavnParser : BaseParser() {
 
     private val playlistParser = PlaylistParser(trackParser)
 
-    fun parsePlaylistSearchResults(jsonString: String): List<PlaylistResult> =
+    // Existing delegations (updated return types)
+    fun parsePlaylistSearchResults(jsonString: String): List<Playlist> =
         playlistParser.parsePlaylistSearchResults(jsonString)
 
-    fun parsePlaylistDetails(jsonString: String): PlaylistDetail? =
+    fun parsePlaylistDetails(jsonString: String): Playlist? =
         playlistParser.parsePlaylistDetails(jsonString)
+
+    // New delegations (needed by PlaylistClientImpl)
+    fun parsePlaylistToPlaylist(obj: JsonObject): Playlist? =
+        playlistParser.parsePlaylistToPlaylist(obj)
+
+    fun parsePlaylistTracks(obj: JsonObject): List<Track> =
+        playlistParser.parsePlaylistTracks(obj)
+
+    fun parsePlaylistTracksFromJson(jsonString: String): List<Track> =
+        playlistParser.parsePlaylistTracksFromJson(jsonString)
 
 
     private val searchParser = SearchParser(trackParser, albumParser, artistParser, playlistParser)

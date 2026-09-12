@@ -17,7 +17,7 @@ data class SearchAllResult(
     val songs: List<Track>,
     val albums: List<Album>,
     val artists: List<ArtistResult>,
-    val playlists: List<PlaylistResult>
+    val playlists: List<Playlist>
 )
 
 // ===== ARTIST =====
@@ -45,43 +45,16 @@ data class ArtistDetail(
     val isRadioPresent: Boolean = false
 )
 
-// ===== PLAYLIST =====
-data class PlaylistResult(
-    val id: String,
-    val title: String,
-    val subtitle: String,
-    val image: String,
-    val permaUrl: String,
-    val type: String,
-    val language: String,
-    val explicitContent: Boolean,
-    val songCount: String
-)
-
-data class PlaylistDetail(
-    val id: String,
-    val title: String,
-    val subtitle: String,
-    val image: String,
-    val permaUrl: String,
-    val type: String,
-    val language: String,
-    val explicitContent: Boolean,
-    val songCount: String,
-    val followerCount: String,
-    val songs: List<Track>
-)
-
 // ===== HOME =====
 data class HomeData(
     val nowTrending: List<MediaItem>,
-    val topPlaylists: List<PlaylistResult>,
+    val topPlaylists: List<Playlist>,
     val newAlbums: List<MediaItem>,
-    val topCharts: List<PlaylistResult>
+    val topCharts: List<Playlist>
 )
 
 sealed class MediaItem {
     data class Track(val data: dev.brahmkshatriya.echo.common.models.Track) : MediaItem()
     data class Album(val data: dev.brahmkshatriya.echo.common.models.Album) : MediaItem()
-    data class Playlist(val data: PlaylistResult) : MediaItem()
+    data class Playlist(val data: dev.brahmkshatriya.echo.common.models.Playlist) : MediaItem()
 }

@@ -1,5 +1,7 @@
 package dev.brahmkshatriya.echo.extension.parser
 
+import dev.brahmkshatriya.echo.common.models.Playlist
+
 import kotlinx.serialization.json.*
 
 class HomeParser(
@@ -13,9 +15,9 @@ class HomeParser(
             val jsonObject = json.parseToJsonElement(jsonString).jsonObject
 
             val nowTrending = mutableListOf<MediaItem>()
-            val topPlaylists = mutableListOf<PlaylistResult>()
+            val topPlaylists = mutableListOf<Playlist>()
             val newAlbums = mutableListOf<MediaItem>()
-            val topCharts = mutableListOf<PlaylistResult>()
+            val topCharts = mutableListOf<Playlist>()
 
             // Now Trending
             jsonObject["new_trending"]?.jsonArray?.forEach { item ->
@@ -26,7 +28,7 @@ class HomeParser(
                     when (type) {
                         "song" -> trackParser.parseSongFromJson(obj)?.let { nowTrending.add(MediaItem.Track(it)) }
                         "album" -> albumParser.parseAlbumToAlbum(obj)?.let { nowTrending.add(MediaItem.Album(it)) }
-                        "playlist" -> playlistParser.parsePlaylistFromJson(obj)?.let { nowTrending.add(MediaItem.Playlist(it)) }
+                        "playlist" -> playlistParser.parsePlaylistToPlaylist(obj)?.let { nowTrending.add(MediaItem.Playlist(it)) }
                     }
                 } catch (e: Exception) {
                     println("DEBUG: Failed to parse trending item: ${e.message}")
@@ -36,7 +38,7 @@ class HomeParser(
             // Top Playlists
             jsonObject["top_playlists"]?.jsonArray?.forEach { item ->
                 try {
-                    playlistParser.parsePlaylistFromJson(item.jsonObject)?.let { topPlaylists.add(it) }
+                    playlistParser.parsePlaylistToPlaylist(item.jsonObject)?.let { topPlaylists.add(it) }
                 } catch (e: Exception) {
                     println("DEBUG: Failed to parse top playlist: ${e.message}")
                 }
@@ -60,7 +62,7 @@ class HomeParser(
             // Top Charts
             jsonObject["charts"]?.jsonArray?.forEach { item ->
                 try {
-                    playlistParser.parsePlaylistFromJson(item.jsonObject)?.let { topCharts.add(it) }
+                    playlistParser.parsePlaylistToPlaylist(item.jsonObject)?.let { topCharts.add(it) }
                 } catch (e: Exception) {
                     println("DEBUG: Failed to parse chart: ${e.message}")
                 }
