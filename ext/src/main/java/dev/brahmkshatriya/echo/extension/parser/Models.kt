@@ -2,8 +2,6 @@ package dev.brahmkshatriya.echo.extension.parser
 
 import dev.brahmkshatriya.echo.common.models.*
 
-import kotlinx.serialization.json.*
-
 // ===== STREAM =====
 data class StreamUrls(
     val low: String,
@@ -22,14 +20,8 @@ data class SearchAllResult(
 
 // ===== HOME =====
 data class HomeData(
-    val nowTrending: List<MediaItem>,
+    val nowTrending: List<EchoMediaItem>,
     val topPlaylists: List<Playlist>,
-    val newAlbums: List<MediaItem>,
+    val newAlbums: List<EchoMediaItem>,
     val topCharts: List<Playlist>
 )
-
-sealed class MediaItem {
-    data class Track(val data: dev.brahmkshatriya.echo.common.models.Track) : MediaItem()
-    data class Album(val data: dev.brahmkshatriya.echo.common.models.Album) : MediaItem()
-    data class Playlist(val data: dev.brahmkshatriya.echo.common.models.Playlist) : MediaItem()
-}

@@ -1,8 +1,15 @@
 package dev.brahmkshatriya.echo.extension.parser
 
-import dev.brahmkshatriya.echo.common.models.Playlist
+import dev.brahmkshatriya.echo.common.models.*
 
 import kotlinx.serialization.json.*
+
+data class HomeData(
+    val nowTrending: List<EchoMediaItem>,
+    val topPlaylists: List<Playlist>,
+    val newAlbums: List<EchoMediaItem>,
+    val topCharts: List<Playlist>
+)
 
 class HomeParser(
     private val trackParser: TrackParser,
@@ -14,9 +21,9 @@ class HomeParser(
         return try {
             val jsonObject = json.parseToJsonElement(jsonString).jsonObject
 
-            val nowTrending = mutableListOf<MediaItem>()
+            val nowTrending = mutableListOf<EchoMediaItem>()
             val topPlaylists = mutableListOf<Playlist>()
-            val newAlbums = mutableListOf<MediaItem>()
+            val newAlbums = mutableListOf<EchoMediaItem>()
             val topCharts = mutableListOf<Playlist>()
 
             // Now Trending
@@ -24,11 +31,10 @@ class HomeParser(
                 try {
                     val obj = item.jsonObject
                     val type = obj["type"]?.jsonPrimitive?.content ?: ""
-
                     when (type) {
-                        "song" -> trackParser.parseSongFromJson(obj)?.let { nowTrending.add(MediaItem.Track(it)) }
-                        "album" -> albumParser.parseAlbumToAlbum(obj)?.let { nowTrending.add(MediaItem.Album(it)) }
-                        "playlist" -> playlistParser.parsePlaylistToPlaylist(obj)?.let { nowTrending.add(MediaItem.Playlist(it)) }
+                        "song" -> trackParser.parseSongToTrack(obj)?.let { nowTrending.add(it) }
+                        "album" -> albumParser.parseAlbumToAlbum(obj)?.let { nowTrending.add(it) }
+                        "playlist" -> playlistParser.parsePlaylistToPlaylist(obj)?.let { nowTrending.add(it) }
                     }
                 } catch (e: Exception) {
                     println("DEBUG: Failed to parse trending item: ${e.message}")
@@ -49,10 +55,10 @@ class HomeParser(
                 try {
                     val obj = item.jsonObject
                     val type = obj["type"]?.jsonPrimitive?.content ?: ""
-
                     when (type) {
-                        "album" -> albumParser.parseAlbumToAlbum(obj)?.let { newAlbums.add(MediaItem.Album(it)) }
-                        "song" -> trackParser.parseSongFromJson(obj)?.let { newAlbums.add(MediaItem.Track(it)) }
+                        "album" -> albumParser.parseAlbumToAlbum(obj)?.let { newAlbums.add(it) }
+                        "song" -> trackParser.parseSongToTrack(obj)?.let { newAlbums.add(it) }
+                        "playlist" -> playlistParser.parsePlaylistToPlaylist(obj)?.let { newAlbums.add(it) }
                     }
                 } catch (e: Exception) {
                     println("DEBUG: Failed to parse new album: ${e.message}")

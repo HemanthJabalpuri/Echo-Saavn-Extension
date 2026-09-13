@@ -29,9 +29,9 @@ class AlbumClientImpl(
         // Cache miss - fetch, parse, cache
         val response = api.getAlbumDetails(album.id)
         val jsonObject = json.parseToJsonElement(response).jsonObject
-        val parsedAlbum = parser.parseAlbumToAlbum(jsonObject)
+        val parsedAlbum = parser.album.parseAlbumToAlbum(jsonObject)
             ?: throw Exception("Album not found")
-        val tracks = parser.parseAlbumTracks(jsonObject)
+        val tracks = parser.album.parseAlbumTracks(jsonObject)
 
         cachedAlbumId = album.id
         cachedAlbum = parsedAlbum

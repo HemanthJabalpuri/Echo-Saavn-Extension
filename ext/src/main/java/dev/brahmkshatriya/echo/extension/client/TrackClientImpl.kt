@@ -2,11 +2,12 @@ package dev.brahmkshatriya.echo.extension.client
 
 import dev.brahmkshatriya.echo.common.clients.TrackClient
 import dev.brahmkshatriya.echo.common.models.*
-import dev.brahmkshatriya.echo.extension.utils.parseStreamUrls
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeed
 import dev.brahmkshatriya.echo.common.models.NetworkRequest.Companion.toGetRequest
 
-import dev.brahmkshatriya.echo.extension.*
+import dev.brahmkshatriya.echo.extension.JioSaavnApi
+import dev.brahmkshatriya.echo.extension.JioSaavnParser
+import dev.brahmkshatriya.echo.extension.utils.*
 
 class TrackClientImpl(
     private val api: JioSaavnApi,
@@ -18,49 +19,50 @@ class TrackClientImpl(
     }
 
     override suspend fun loadStreamableMedia(
-        streamable: Streamable, 
+        streamable: Streamable,
         isDownload: Boolean
     ): Streamable.Media {
         return when (streamable.type) {
             Streamable.MediaType.Server -> {
-                println("DEBUG: Loading streamable media")
+                val encryptedUrl = streamable.extras["encryptedMediaUrl"]
+                    ?: throw Exception("No encrypted URL found")
                 
-                val streamUrls = streamable.extras["streamUrls"] 
-                    ?: throw Exception("No stream URLs found")
-                val urls = parseStreamUrls(streamUrls)
-
+                // Decrypt on demand
+                val urls = decryptUrl(encryptedUrl)
+                    ?: throw Exception("Failed to decrypt URL")
+                
                 val sources = mutableListOf<Streamable.Source.Http>()
                 
-                if (urls["veryHigh"]?.isNotBlank() == true) {
+                urls["veryHigh"]?.let {
                     sources.add(Streamable.Source.Http(
-                        request = urls["veryHigh"]!!.toGetRequest(),
+                        request = it.toGetRequest(),
                         type = Streamable.SourceType.Progressive,
                         quality = 320,
                         title = "320kbps"
                     ))
                 }
                 
-                if (urls["high"]?.isNotBlank() == true) {
+                urls["high"]?.let {
                     sources.add(Streamable.Source.Http(
-                        request = urls["high"]!!.toGetRequest(),
+                        request = it.toGetRequest(),
                         type = Streamable.SourceType.Progressive,
                         quality = 160,
                         title = "160kbps"
                     ))
                 }
                 
-                if (urls["medium"]?.isNotBlank() == true) {
+                urls["medium"]?.let {
                     sources.add(Streamable.Source.Http(
-                        request = urls["medium"]!!.toGetRequest(),
+                        request = it.toGetRequest(),
                         type = Streamable.SourceType.Progressive,
                         quality = 96,
                         title = "96kbps"
                     ))
                 }
                 
-                if (urls["low"]?.isNotBlank() == true) {
+                urls["low"]?.let {
                     sources.add(Streamable.Source.Http(
-                        request = urls["low"]!!.toGetRequest(),
+                        request = it.toGetRequest(),
                         type = Streamable.SourceType.Progressive,
                         quality = 48,
                         title = "48kbps"
@@ -84,39 +86,28 @@ class TrackClientImpl(
 
     override suspend fun loadFeed(track: Track): Feed<Shelf> {
         return try {
-            println("DEBUG: Loading related tracks for: ${track.id}")
-
-            try {
-                val songId = track.extras["songId"] ?: track.id
-                val stationResponse = api.createSongStation(songId)
-                val stationId = parser.parseStationId(stationResponse)
-                
-                if (stationId != null) {
-                    val suggestionsResponse = api.getSongSuggestions(stationId, limit = 20)
-                    val songs = parser.parseSongSuggestions(suggestionsResponse)
-                    
-                    if (songs.isNotEmpty()) {
-                        val tracks = songs
-                        
-                        return listOf(
-                            Shelf.Lists.Tracks(
-                                id = "similar_tracks",
-                                title = "Similar Tracks",
-                                list = tracks,
-                                subtitle = "You might also like"
-                            )
-                        ).toFeed()
-                    }
-                }
-            } catch (e: Exception) {
-                println("DEBUG: Station-based suggestions failed in loadFeed: ${e.message}")
-            }
+            val songId = track.extras["songId"] ?: track.id
+            val response = api.createSongStation(songId)
+            val stationId = parser.radio.parseStationId(response)
             
+            if (stationId != null) {
+                val suggestionsResponse = api.getSongSuggestions(stationId, limit = 20)
+                val songs = parser.radio.parseSongSuggestions(suggestionsResponse)
+                
+                if (songs.isNotEmpty()) {
+                    return listOf(
+                        Shelf.Lists.Tracks(
+                            id = "similar_tracks",
+                            title = "Similar Tracks",
+                            list = songs,
+                            subtitle = "You might also like"
+                        )
+                    ).toFeed()
+                }
+            }
             emptyList<Shelf>().toFeed()
         } catch (e: Exception) {
-            println("DEBUG: Failed to load similar tracks: ${e.message}")
             emptyList<Shelf>().toFeed()
         }
     }
-
 }

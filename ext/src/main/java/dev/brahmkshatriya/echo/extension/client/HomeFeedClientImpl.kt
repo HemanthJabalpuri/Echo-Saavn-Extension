@@ -2,12 +2,9 @@ package dev.brahmkshatriya.echo.extension.client
 
 import dev.brahmkshatriya.echo.common.clients.HomeFeedClient
 import dev.brahmkshatriya.echo.common.models.*
-import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeed
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeedData
-
-import dev.brahmkshatriya.echo.extension.parser.MediaItem
-
-import dev.brahmkshatriya.echo.extension.*
+import dev.brahmkshatriya.echo.extension.JioSaavnApi
+import dev.brahmkshatriya.echo.extension.JioSaavnParser
 
 class HomeFeedClientImpl(
     private val api: JioSaavnApi,
@@ -29,67 +26,67 @@ class HomeFeedClientImpl(
             Tab(id = "malayalam", title = "Malayalam"),
             Tab(id = "urdu", title = "Urdu")
         )
-        
+
         return Feed(tabs) { tab ->
             try {
                 val language = tab?.id ?: "hindi"
                 val response = api.getHomeData(language)
-                val homeData = parser.parseHomeData(response) 
-                
+                val homeData = parser.home.parseHomeData(response)
+
                 if (homeData == null) {
                     return@Feed emptyList<Shelf>().toFeedData()
                 }
-                
+
                 val shelves = mutableListOf<Shelf>()
+
+                // Now Trending
                 if (homeData.nowTrending.isNotEmpty()) {
-                    val trendingItems = homeData.nowTrending.map { mediaItem ->
-                        when (mediaItem) {
-                            is MediaItem.Track -> mediaItem.data
-                            is MediaItem.Album -> mediaItem.data
-                            is MediaItem.Playlist -> mediaItem.data
-                        }
-                    }
-                    shelves.add(Shelf.Lists.Items(
-                        id = "now_trending",
-                        title = "Now Trending",
-                        list = trendingItems,
-                        subtitle = "Popular content right now"
-                    ))
+                    shelves.add(
+                        Shelf.Lists.Items(
+                            id = "now_trending",
+                            title = "Now Trending",
+                            list = homeData.nowTrending,
+                            subtitle = "Popular content right now"
+                        )
+                    )
                 }
+
+                // Top Playlists
                 if (homeData.topPlaylists.isNotEmpty()) {
-                    shelves.add(Shelf.Lists.Items(
-                        id = "top_playlists",
-                        title = "Top Playlists",
-                        list = homeData.topPlaylists,
-                        subtitle = "Curated playlists for you"
-                    ))
+                    shelves.add(
+                        Shelf.Lists.Items(
+                            id = "top_playlists",
+                            title = "Top Playlists",
+                            list = homeData.topPlaylists,
+                            subtitle = "Curated playlists for you"
+                        )
+                    )
                 }
 
+                // New Albums
                 if (homeData.newAlbums.isNotEmpty()) {
-                    val newAlbumItems = homeData.newAlbums.map { mediaItem ->
-                        when (mediaItem) {
-                            is MediaItem.Album -> mediaItem.data
-                            is MediaItem.Track -> mediaItem.data
-                            is MediaItem.Playlist -> mediaItem.data
-                        }
-                    }
-                    shelves.add(Shelf.Lists.Items(
-                        id = "new_albums",
-                        title = "New Albums",
-                        list = newAlbumItems,
-                        subtitle = "Latest releases"
-                    ))
+                    shelves.add(
+                        Shelf.Lists.Items(
+                            id = "new_albums",
+                            title = "New Albums",
+                            list = homeData.newAlbums,
+                            subtitle = "Latest releases"
+                        )
+                    )
                 }
 
+                // Top Charts
                 if (homeData.topCharts.isNotEmpty()) {
-                    shelves.add(Shelf.Lists.Items(
-                        id = "top_charts",
-                        title = "Top Charts",
-                        list = homeData.topCharts,
-                        subtitle = "Trending charts"
-                    ))
+                    shelves.add(
+                        Shelf.Lists.Items(
+                            id = "top_charts",
+                            title = "Top Charts",
+                            list = homeData.topCharts,
+                            subtitle = "Trending charts"
+                        )
+                    )
                 }
-                
+
                 shelves.toFeedData()
             } catch (e: Exception) {
                 println("DEBUG: Failed to load home feed for tab ${tab?.id}: ${e.message}")
@@ -98,5 +95,4 @@ class HomeFeedClientImpl(
             }
         }
     }
-
 }

@@ -22,7 +22,7 @@ class QuickSearchClientImpl(
         
         return try {
             val response = api.searchAll(query, page = 1, limit = 10)
-            val results = parser.parseSearchAll(response)
+            val results = parser.search.parseSearchAll(response)
             
             val items = mutableListOf<QuickSearchItem>()
             results.songs.take(3).forEach { song ->
@@ -59,7 +59,7 @@ class QuickSearchClientImpl(
             val songsDeferred = async { 
                 try { 
                     val response = api.searchSongs(query, page = 1, limit = 10)
-                    parser.parseSongSearchResults(response)
+                    parser.track.parseSongSearchResults(response)
                 } catch (e: Exception) { 
                     println("DEBUG: Songs search failed: ${e.message}")
                     emptyList() 
@@ -69,7 +69,7 @@ class QuickSearchClientImpl(
             val albumsDeferred = async { 
                 try { 
                     val response = api.searchAlbums(query, page = 1, limit = 10)
-                    parser.parseAlbumSearchResults(response)
+                    parser.album.parseAlbumSearchResults(response)
                 } catch (e: Exception) { 
                     println("DEBUG: Albums search failed: ${e.message}")
                     emptyList() 
@@ -79,7 +79,7 @@ class QuickSearchClientImpl(
             val artistsDeferred = async { 
                 try { 
                     val response = api.searchArtists(query, page = 1, limit = 10)
-                    parser.parseArtistSearchResults(response)
+                    parser.artist.parseArtistSearchResults(response)
                 } catch (e: Exception) { 
                     println("DEBUG: Artists search failed: ${e.message}")
                     emptyList() 
@@ -89,7 +89,7 @@ class QuickSearchClientImpl(
             val playlistsDeferred = async { 
                 try { 
                     val response = api.searchPlaylists(query, page = 1, limit = 10)
-                    parser.parsePlaylistSearchResults(response)
+                    parser.playlist.parsePlaylistSearchResults(response)
                 } catch (e: Exception) { 
                     println("DEBUG: Playlists search failed: ${e.message}")
                     emptyList() 
@@ -159,7 +159,7 @@ class QuickSearchClientImpl(
         val page = (continuation as? String)?.toIntOrNull() ?: 1
         try {
             val response = api.searchSongs(query, page = page, limit = 20)
-            val songs = parser.parseSongSearchResults(response)
+            val songs = parser.track.parseSongSearchResults(response)
             
             Page(
                 listOf(Shelf.Lists.Tracks(
@@ -179,7 +179,7 @@ class QuickSearchClientImpl(
         val page = (continuation as? String)?.toIntOrNull() ?: 1
         try {
             val response = api.searchAlbums(query, page = page, limit = 20)
-            val albums = parser.parseAlbumSearchResults(response)
+            val albums = parser.album.parseAlbumSearchResults(response)
             
             Page(
                 listOf(Shelf.Lists.Items(
@@ -199,7 +199,7 @@ class QuickSearchClientImpl(
         val page = (continuation as? String)?.toIntOrNull() ?: 1
         try {
             val response = api.searchArtists(query, page = page, limit = 20)
-            val artists = parser.parseArtistSearchResults(response)
+            val artists = parser.artist.parseArtistSearchResults(response)
             
             Page(
                 listOf(Shelf.Lists.Items(
@@ -219,7 +219,7 @@ class QuickSearchClientImpl(
         val page = (continuation as? String)?.toIntOrNull() ?: 1
         try {
             val response = api.searchPlaylists(query, page = page, limit = 20)
-            val playlists = parser.parsePlaylistSearchResults(response)
+            val playlists = parser.playlist.parsePlaylistSearchResults(response)
             
             Page(
                 listOf(Shelf.Lists.Items(

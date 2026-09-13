@@ -26,9 +26,9 @@ class PlaylistClientImpl(
 
         val response = api.getPlaylistDetails(playlist.id)
         val jsonObject = json.parseToJsonElement(response).jsonObject
-        val parsedPlaylist = parser.parsePlaylistToPlaylist(jsonObject)
+        val parsedPlaylist = parser.playlist.parsePlaylistToPlaylist(jsonObject)
             ?: throw Exception("Playlist not found")
-        val tracks = parser.parsePlaylistTracks(jsonObject)
+        val tracks = parser.playlist.parsePlaylistTracks(jsonObject)
 
         cachedPlaylistId = playlist.id
         cachedPlaylist = parsedPlaylist

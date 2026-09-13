@@ -1,6 +1,15 @@
 package dev.brahmkshatriya.echo.extension.parser
 
+import dev.brahmkshatriya.echo.common.models.*
+
 import kotlinx.serialization.json.*
+
+data class SearchAllResult(
+    val songs: List<Track>,
+    val albums: List<Album>,
+    val artists: List<Artist>,
+    val playlists: List<Playlist>
+)
 
 class SearchParser(
     private val trackParser: TrackParser,

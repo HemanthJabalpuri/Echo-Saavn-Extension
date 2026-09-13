@@ -33,10 +33,10 @@ class ArtistClientImpl(
         val jsonObject = json.parseToJsonElement(response).jsonObject
 
         // Parse and cache
-        val parsedArtist = parser.parseArtistToArtist(jsonObject)
+        val parsedArtist = parser.artist.parseArtistToArtist(jsonObject)
             ?: throw Exception("Artist not found")
-        val topSongs = parser.parseArtistTopSongs(jsonObject)
-        val topAlbums = parser.parseArtistTopAlbums(jsonObject)
+        val topSongs = parser.artist.parseArtistTopSongs(jsonObject)
+        val topAlbums = parser.artist.parseArtistTopAlbums(jsonObject)
 
         cachedArtistId = artist.id
         cachedArtist = parsedArtist
@@ -103,8 +103,8 @@ class ArtistClientImpl(
                         val jsonObject = json.parseToJsonElement(response).jsonObject
 
                         val items = when (type) {
-                            "songs" -> parser.parseArtistTopSongs(jsonObject).map { it.toShelf() }
-                            "albums" -> parser.parseArtistTopAlbums(jsonObject).map { it.toShelf() }
+                            "songs" -> parser.artist.parseArtistTopSongs(jsonObject).map { it.toShelf() }
+                            "albums" -> parser.artist.parseArtistTopAlbums(jsonObject).map { it.toShelf() }
                             else -> emptyList()
                         }
 

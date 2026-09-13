@@ -2,17 +2,33 @@ package dev.brahmkshatriya.echo.extension.utils
 
 import dev.brahmkshatriya.echo.common.models.Date
 
-fun parseStreamUrls(urlsString: String): Map<String, String> {
-    val map = mutableMapOf<String, String>()
-    try {
-        urlsString.split(",").forEach { part ->
-            val (key, value) = part.trim().split("=", limit = 2)
-            map[key.trim()] = value.trim()
-        }
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+import javax.crypto.Cipher
+import javax.crypto.spec.SecretKeySpec
+
+private const val DES_KEY = "38346591"
+
+fun decryptUrl(encryptedUrl: String): Map<String, String>? {
+    return try {
+        val keySpec = SecretKeySpec(DES_KEY.toByteArray(StandardCharsets.UTF_8), "DES")
+        val cipher = Cipher.getInstance("DES/ECB/PKCS5Padding")
+        cipher.init(Cipher.DECRYPT_MODE, keySpec)
+        
+        val encryptedBytes = Base64.getDecoder().decode(encryptedUrl.trim())
+        val decryptedBytes = cipher.doFinal(encryptedBytes)
+        val decryptedUrl = String(decryptedBytes, StandardCharsets.UTF_8)
+        
+        mapOf(
+            "low" to decryptedUrl.replace("_96.mp4", "_48.mp4"),
+            "medium" to decryptedUrl,
+            "high" to decryptedUrl.replace("_96.mp4", "_160.mp4"),
+            "veryHigh" to decryptedUrl.replace("_96.mp4", "_320.mp4")
+        )
     } catch (e: Exception) {
-        println("DEBUG: Failed to parse stream URLs: ${e.message}")
+        println("DEBUG: Failed to decrypt URL: ${e.message}")
+        null
     }
-    return map
 }
 
 fun convertImageUrl(url: String?): String {

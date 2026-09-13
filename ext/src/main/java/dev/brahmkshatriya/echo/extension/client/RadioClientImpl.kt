@@ -38,7 +38,7 @@ class RadioClientImpl(
             for (id in trackIds) {
                 try {
                     val response = api.getSongDetails(id)
-                    val songDetail = parser.parseSongDetails(response).firstOrNull()
+                    val songDetail = parser.track.parseSongDetails(response).firstOrNull()
                     if (songDetail != null) {
                         tracks.add(songDetail)
                     }
@@ -63,13 +63,13 @@ class RadioClientImpl(
             try {
                 val songId = track.extras["songId"] ?: track.id
                 val stationResponse = api.createSongStation(songId)
-                val stationId = parser.parseStationId(stationResponse)
+                val stationId = parser.radio.parseStationId(stationResponse)
                 
                 if (stationId != null) {
                     println("DEBUG: Created station with ID: $stationId")
         
                     val suggestionsResponse = api.getSongSuggestions(stationId, limit = 50)
-                    val songs = parser.parseSongSuggestions(suggestionsResponse)
+                    val songs = parser.radio.parseSongSuggestions(suggestionsResponse)
                     
                     if (songs.isNotEmpty()) {
                         println("DEBUG: Successfully got ${songs.size} song suggestions from station")
@@ -102,7 +102,7 @@ class RadioClientImpl(
 
             val artistResponse = api.getArtistDetails(primaryArtist.id, songCount = 50, albumCount = 0)
             val jsonObject = json.parseToJsonElement(artistResponse).jsonObject  // ← Parse JSON
-            val topSongs = parser.parseArtistTopSongs(jsonObject)  // ← Get top songs
+            val topSongs = parser.artist.parseArtistTopSongs(jsonObject)  // ← Get top songs
 
             if (topSongs.isEmpty()) {
                 throw Exception("Artist has no songs available")
@@ -126,7 +126,7 @@ class RadioClientImpl(
     private suspend fun createRadioFromAlbum(album: Album): Radio {
         return try {
             val response = api.getAlbumDetails(album.id)
-            val tracks = parser.parseAlbumTracksFromJson(response)
+            val tracks = parser.album.parseAlbumTracksFromJson(response)
 
             val trackIds = tracks.map { it.id }.joinToString(",")
 
@@ -148,20 +148,20 @@ class RadioClientImpl(
             val response = api.getArtistDetails(artist.id, songCount = 50, albumCount = 10)
             val jsonObject = json.parseToJsonElement(response).jsonObject
 
-            val artistData = parser.parseArtistToArtist(jsonObject)
+            val artistData = parser.artist.parseArtistToArtist(jsonObject)
                 ?: throw Exception("Artist not found")
-            val topSongs = parser.parseArtistTopSongs(jsonObject)
-            val isRadioPresent = parser.parseArtistIsRadioPresent(jsonObject)
+            val topSongs = parser.artist.parseArtistTopSongs(jsonObject)
+            val isRadioPresent = parser.artist.parseArtistIsRadioPresent(jsonObject)
             val dominantLanguage = artistData.extras["dominantLanguage"] ?: "hindi"
 
             if (isRadioPresent) {
                 try {
                     val stationResponse = api.createArtistRadioStation(artistData.name, dominantLanguage)
-                    val stationId = parser.parseArtistRadioStationId(stationResponse)
+                    val stationId = parser.radio.parseArtistRadioStationId(stationResponse)
 
                     if (stationId != null) {
                         val songsResponse = api.getRadioSongs(stationId, limit = 20)
-                        val radioSongs = parser.parseRadioSongs(songsResponse)
+                        val radioSongs = parser.radio.parseRadioSongs(songsResponse)
 
                         if (radioSongs.isNotEmpty()) {
                             val trackIds = radioSongs.map { it.id }.joinToString(",")
@@ -196,7 +196,7 @@ class RadioClientImpl(
     private suspend fun createRadioFromPlaylist(playlist: Playlist): Radio {
         return try {
             val response = api.getPlaylistDetails(playlist.id)
-            val tracks = parser.parsePlaylistTracksFromJson(response)
+            val tracks = parser.playlist.parsePlaylistTracksFromJson(response)
 
             val trackIds = tracks.map { it.id }.joinToString(",")
 

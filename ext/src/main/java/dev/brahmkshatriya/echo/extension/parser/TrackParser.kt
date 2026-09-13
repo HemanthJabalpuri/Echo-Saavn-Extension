@@ -2,8 +2,10 @@ package dev.brahmkshatriya.echo.extension.parser
 
 import dev.brahmkshatriya.echo.common.models.*
 import dev.brahmkshatriya.echo.common.models.ImageHolder.Companion.toImageHolder
-import dev.brahmkshatriya.echo.extension.utils.*
+
 import kotlinx.serialization.json.*
+
+import dev.brahmkshatriya.echo.extension.utils.*
 
 class TrackParser : BaseParser() {
 
@@ -57,16 +59,14 @@ class TrackParser : BaseParser() {
 
         // Streamables
         val encryptedMediaUrl = moreInfo?.get("encrypted_media_url")?.jsonPrimitive?.content
-        val streamUrls = encryptedMediaUrl?.let { decryptUrl(it) }
-        val streamables = if (streamUrls != null) {
-            val urlsString = "low=${streamUrls.low}, medium=${streamUrls.medium}, high=${streamUrls.high}, veryHigh=${streamUrls.veryHigh}"
+        val streamables = if (encryptedMediaUrl != null) {
             listOf(
                 Streamable.server(
                     id = "server_$id",
                     quality = 320,
                     title = "Audio Stream",
                     extras = mapOf(
-                        "streamUrls" to urlsString,
+                        "encryptedMediaUrl" to encryptedMediaUrl,
                         "trackId" to id
                     )
                 )
