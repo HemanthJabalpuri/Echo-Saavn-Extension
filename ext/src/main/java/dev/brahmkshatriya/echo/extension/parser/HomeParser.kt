@@ -4,13 +4,6 @@ import dev.brahmkshatriya.echo.common.models.*
 
 import kotlinx.serialization.json.*
 
-data class HomeData(
-    val nowTrending: List<EchoMediaItem>,
-    val topPlaylists: List<Playlist>,
-    val newAlbums: List<EchoMediaItem>,
-    val topCharts: List<Playlist>
-)
-
 class HomeParser(
     private val trackParser: TrackParser,
     private val albumParser: AlbumParser,

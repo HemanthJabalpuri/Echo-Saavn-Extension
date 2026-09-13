@@ -17,222 +17,182 @@ class QuickSearchClientImpl(
     private val parser: JioSaavnParser
 ) : QuickSearchClient {
 
+    // ===== SHARED FETCHER =====
+    private data class SearchResults(
+        val songs: List<Track>,
+        val albums: List<Album>,
+        val artists: List<Artist>,
+        val playlists: List<Playlist>
+    )
+
+    private suspend fun fetchAll(query: String, limit: Int = 10): SearchResults = coroutineScope {
+        val songsDeferred = async {
+            try {
+                val response = api.searchSongs(query, page = 1, limit = limit)
+                parser.track.parseSongSearchResults(response)
+            } catch (e: Exception) { emptyList() }
+        }
+        
+        val albumsDeferred = async {
+            try {
+                val response = api.searchAlbums(query, page = 1, limit = limit)
+                parser.album.parseAlbumSearchResults(response)
+            } catch (e: Exception) { emptyList() }
+        }
+        
+        val artistsDeferred = async {
+            try {
+                val response = api.searchArtists(query, page = 1, limit = limit)
+                parser.artist.parseArtistSearchResults(response)
+            } catch (e: Exception) { emptyList() }
+        }
+        
+        val playlistsDeferred = async {
+            try {
+                val response = api.searchPlaylists(query, page = 1, limit = limit)
+                parser.playlist.parsePlaylistSearchResults(response)
+            } catch (e: Exception) { emptyList() }
+        }
+        
+        SearchResults(
+            songs = songsDeferred.await(),
+            albums = albumsDeferred.await(),
+            artists = artistsDeferred.await(),
+            playlists = playlistsDeferred.await()
+        )
+    }
+
+    // ===== QUICK SEARCH =====
     override suspend fun quickSearch(query: String): List<QuickSearchItem> {
         if (query.isBlank()) return emptyList()
         
-        return try {
-            val response = api.searchAll(query, page = 1, limit = 10)
-            val results = parser.search.parseSearchAll(response)
-            
-            val items = mutableListOf<QuickSearchItem>()
-            results.songs.take(3).forEach { song ->
-                items.add(QuickSearchItem.Media(song, false))
-            }
-            results.albums.take(3).forEach { album ->
-                items.add(QuickSearchItem.Media(album, false))
-            }
-            results.artists.take(2).forEach { artist ->
-                items.add(QuickSearchItem.Media(artist, false))
-            }
-            results.playlists.take(2).forEach { playlist ->
-                items.add(QuickSearchItem.Media(playlist, false))
-            }
-            
-            items
-        } catch (e: Exception) {
-            println("DEBUG: Quick search failed: ${e.message}")
-            e.printStackTrace()
-            emptyList()
-        }
+        val results = fetchAll(query, limit = 5)
+        
+        val items = mutableListOf<QuickSearchItem>()
+        results.songs.take(3).forEach { items.add(QuickSearchItem.Media(it, false)) }
+        results.albums.take(3).forEach { items.add(QuickSearchItem.Media(it, false)) }
+        results.artists.take(2).forEach { items.add(QuickSearchItem.Media(it, false)) }
+        results.playlists.take(2).forEach { items.add(QuickSearchItem.Media(it, false)) }
+        
+        return items
     }
 
     override suspend fun deleteQuickSearch(item: QuickSearchItem) {
-        // Not implemented - search history not stored
+        // Not implemented
     }
 
+    // ===== SEARCH FEED =====
     override suspend fun loadSearchFeed(query: String): Feed<Shelf> {
-        if (query.isBlank()) {
-            return emptyList<Shelf>().toFeed()
+        if (query.isBlank()) return emptyList<Shelf>().toFeed()
+        
+        val results = fetchAll(query, limit = 10)
+        
+        val shelves = mutableListOf<Shelf>()
+        
+        if (results.songs.isNotEmpty()) {
+            shelves.add(Shelf.Lists.Tracks(
+                id = "search_songs",
+                title = "Songs",
+                list = results.songs
+            ))
         }
         
-        return coroutineScope {
-            val songsDeferred = async { 
-                try { 
-                    val response = api.searchSongs(query, page = 1, limit = 10)
-                    parser.track.parseSongSearchResults(response)
-                } catch (e: Exception) { 
-                    println("DEBUG: Songs search failed: ${e.message}")
-                    emptyList() 
-                }
-            }
-            
-            val albumsDeferred = async { 
-                try { 
-                    val response = api.searchAlbums(query, page = 1, limit = 10)
-                    parser.album.parseAlbumSearchResults(response)
-                } catch (e: Exception) { 
-                    println("DEBUG: Albums search failed: ${e.message}")
-                    emptyList() 
-                }
-            }
-            
-            val artistsDeferred = async { 
-                try { 
-                    val response = api.searchArtists(query, page = 1, limit = 10)
-                    parser.artist.parseArtistSearchResults(response)
-                } catch (e: Exception) { 
-                    println("DEBUG: Artists search failed: ${e.message}")
-                    emptyList() 
-                }
-            }
-            
-            val playlistsDeferred = async { 
-                try { 
-                    val response = api.searchPlaylists(query, page = 1, limit = 10)
-                    parser.playlist.parsePlaylistSearchResults(response)
-                } catch (e: Exception) { 
-                    println("DEBUG: Playlists search failed: ${e.message}")
-                    emptyList() 
-                }
-            }
-            
-            val songs = songsDeferred.await()
-            val albums = albumsDeferred.await()
-            val artists = artistsDeferred.await()
-            val playlists = playlistsDeferred.await()
-            
-            val shelves = mutableListOf<Shelf>()
-            
-            if (songs.isNotEmpty()) {
-                shelves.add(Shelf.Lists.Tracks(
-                    id = "search_songs",
-                    title = "Songs",
-                    list = songs
-                ))
-            }
-            
-            if (albums.isNotEmpty()) {
-                shelves.add(Shelf.Lists.Items(
-                    id = "search_albums",
-                    title = "Albums",
-                    list = albums
-                ))
-            }
-            
-            if (artists.isNotEmpty()) {
-                shelves.add(Shelf.Lists.Items(
-                    id = "search_artists",
-                    title = "Artists",
-                    list = artists
-                ))
-            }
-            
-            if (playlists.isNotEmpty()) {
-                shelves.add(Shelf.Lists.Items(
-                    id = "search_playlists",
-                    title = "Playlists",
-                    list = playlists
-                ))
-            }
-            
-            val tabs = listOf(
-                Tab("all", "All"),
-                Tab("songs", "Songs"),
-                Tab("albums", "Albums"),
-                Tab("artists", "Artists"),
-                Tab("playlists", "Playlists")
-            )
-            
-            Feed(tabs) { tab ->
-                when (tab?.id) {
-                    "songs" -> createSongsFeed(query).toFeedData()
-                    "albums" -> createAlbumsFeed(query).toFeedData()
-                    "artists" -> createArtistsFeed(query).toFeedData()
-                    "playlists" -> createPlaylistsFeed(query).toFeedData()
-                    else -> PagedData.Single { shelves }.toFeedData()
-                }
+        if (results.albums.isNotEmpty()) {
+            shelves.add(Shelf.Lists.Items(
+                id = "search_albums",
+                title = "Albums",
+                list = results.albums
+            ))
+        }
+        
+        if (results.artists.isNotEmpty()) {
+            shelves.add(Shelf.Lists.Items(
+                id = "search_artists",
+                title = "Artists",
+                list = results.artists
+            ))
+        }
+        
+        if (results.playlists.isNotEmpty()) {
+            shelves.add(Shelf.Lists.Items(
+                id = "search_playlists",
+                title = "Playlists",
+                list = results.playlists
+            ))
+        }
+        
+        val tabs = listOf(
+            Tab("all", "All"),
+            Tab("songs", "Songs"),
+            Tab("albums", "Albums"),
+            Tab("artists", "Artists"),
+            Tab("playlists", "Playlists")
+        )
+        
+        return Feed(tabs) { tab ->
+            when (tab?.id) {
+                "songs" -> createSongsFeed(query).toFeedData()
+                "albums" -> createAlbumsFeed(query).toFeedData()
+                "artists" -> createArtistsFeed(query).toFeedData()
+                "playlists" -> createPlaylistsFeed(query).toFeedData()
+                else -> PagedData.Single { shelves }.toFeedData()
             }
         }
     }
-    
-    private fun createSongsFeed(query: String) = PagedData.Continuous { continuation ->
-        val page = (continuation as? String)?.toIntOrNull() ?: 1
+
+    private fun createSongsFeed(query: String) = PagedData.Continuous<Shelf> { continuation ->
+        val page = continuation?.toIntOrNull() ?: 1
         try {
             val response = api.searchSongs(query, page = page, limit = 20)
             val songs = parser.track.parseSongSearchResults(response)
             
-            Page(
-                listOf(Shelf.Lists.Tracks(
-                    id = "search_songs_tab",
-                    title = "",
-                    list = songs
-                )),
-                if (songs.size >= 20) (page + 1).toString() else null
-            )
+            val items = songs.map { it.toShelf() }
+            val nextContinuation = if (songs.size >= 20) (page + 1).toString() else null
+            Page(items, nextContinuation)
         } catch (e: Exception) {
-            println("DEBUG: Songs tab pagination failed: ${e.message}")
-            Page(emptyList<Shelf>(), null)
+            Page(emptyList(), null)
         }
     }
-    
-    private fun createAlbumsFeed(query: String) = PagedData.Continuous { continuation ->
-        val page = (continuation as? String)?.toIntOrNull() ?: 1
+
+    private fun createAlbumsFeed(query: String) = PagedData.Continuous<Shelf> { continuation ->
+        val page = continuation?.toIntOrNull() ?: 1
         try {
             val response = api.searchAlbums(query, page = page, limit = 20)
             val albums = parser.album.parseAlbumSearchResults(response)
             
-            Page(
-                listOf(Shelf.Lists.Items(
-                    id = "search_albums_tab",
-                    title = "",
-                    list = albums
-                )),
-                if (albums.size >= 20) (page + 1).toString() else null
-            )
+            val items = albums.map { it.toShelf() }
+            val nextContinuation = if (albums.size >= 20) (page + 1).toString() else null
+            Page(items, nextContinuation)
         } catch (e: Exception) {
-            println("DEBUG: Albums tab pagination failed: ${e.message}")
-            Page(emptyList<Shelf>(), null)
+            Page(emptyList(), null)
         }
     }
-    
-    private fun createArtistsFeed(query: String) = PagedData.Continuous { continuation ->
-        val page = (continuation as? String)?.toIntOrNull() ?: 1
+
+    private fun createArtistsFeed(query: String) = PagedData.Continuous<Shelf> { continuation ->
+        val page = continuation?.toIntOrNull() ?: 1
         try {
             val response = api.searchArtists(query, page = page, limit = 20)
             val artists = parser.artist.parseArtistSearchResults(response)
             
-            Page(
-                listOf(Shelf.Lists.Items(
-                    id = "search_artists_tab",
-                    title = "",
-                    list = artists
-                )),
-                if (artists.size >= 20) (page + 1).toString() else null
-            )
+            val items = artists.map { it.toShelf() }
+            val nextContinuation = if (artists.size >= 20) (page + 1).toString() else null
+            Page(items, nextContinuation)
         } catch (e: Exception) {
-            println("DEBUG: Artists tab pagination failed: ${e.message}")
-            Page(emptyList<Shelf>(), null)
+            Page(emptyList(), null)
         }
     }
-    
-    private fun createPlaylistsFeed(query: String) = PagedData.Continuous { continuation ->
-        val page = (continuation as? String)?.toIntOrNull() ?: 1
+
+    private fun createPlaylistsFeed(query: String) = PagedData.Continuous<Shelf> { continuation ->
+        val page = continuation?.toIntOrNull() ?: 1
         try {
             val response = api.searchPlaylists(query, page = page, limit = 20)
             val playlists = parser.playlist.parsePlaylistSearchResults(response)
             
-            Page(
-                listOf(Shelf.Lists.Items(
-                    id = "search_playlists_tab",
-                    title = "",
-                    list = playlists
-                )),
-                if (playlists.size >= 20) (page + 1).toString() else null
-            )
+            val items = playlists.map { it.toShelf() }
+            val nextContinuation = if (playlists.size >= 20) (page + 1).toString() else null
+            Page(items, nextContinuation)
         } catch (e: Exception) {
-            println("DEBUG: Playlists tab pagination failed: ${e.message}")
-            Page(emptyList<Shelf>(), null)
+            Page(emptyList(), null)
         }
     }
-
 }
