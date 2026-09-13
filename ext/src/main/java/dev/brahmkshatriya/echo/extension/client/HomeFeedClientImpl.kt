@@ -31,62 +31,7 @@ class HomeFeedClientImpl(
             try {
                 val language = tab?.id ?: "hindi"
                 val response = api.getHomeData(language)
-                val homeData = parser.home.parseHomeData(response)
-
-                if (homeData == null) {
-                    return@Feed emptyList<Shelf>().toFeedData()
-                }
-
-                val shelves = mutableListOf<Shelf>()
-
-                // Now Trending
-                if (homeData.nowTrending.isNotEmpty()) {
-                    shelves.add(
-                        Shelf.Lists.Items(
-                            id = "now_trending",
-                            title = "Now Trending",
-                            list = homeData.nowTrending,
-                            subtitle = "Popular content right now"
-                        )
-                    )
-                }
-
-                // Top Playlists
-                if (homeData.topPlaylists.isNotEmpty()) {
-                    shelves.add(
-                        Shelf.Lists.Items(
-                            id = "top_playlists",
-                            title = "Top Playlists",
-                            list = homeData.topPlaylists,
-                            subtitle = "Curated playlists for you"
-                        )
-                    )
-                }
-
-                // New Albums
-                if (homeData.newAlbums.isNotEmpty()) {
-                    shelves.add(
-                        Shelf.Lists.Items(
-                            id = "new_albums",
-                            title = "New Albums",
-                            list = homeData.newAlbums,
-                            subtitle = "Latest releases"
-                        )
-                    )
-                }
-
-                // Top Charts
-                if (homeData.topCharts.isNotEmpty()) {
-                    shelves.add(
-                        Shelf.Lists.Items(
-                            id = "top_charts",
-                            title = "Top Charts",
-                            list = homeData.topCharts,
-                            subtitle = "Trending charts"
-                        )
-                    )
-                }
-
+                val shelves = parser.home.parseHomeFeed(response)
                 shelves.toFeedData()
             } catch (e: Exception) {
                 println("DEBUG: Failed to load home feed for tab ${tab?.id}: ${e.message}")

@@ -21,6 +21,9 @@ class ArtistClientImpl(
     private var cachedArtist: Artist? = null
     private var cachedTopSongs: List<Track>? = null
     private var cachedTopAlbums: List<Album>? = null
+    private var cachedSingles: List<Album>? = null
+    private var cachedDedicatedPlaylists: List<Playlist>? = null
+    private var cachedFeaturedPlaylists: List<Playlist>? = null
 
     override suspend fun loadArtist(artist: Artist): Artist {
         // Cache hit
@@ -41,10 +44,17 @@ class ArtistClientImpl(
         val topSongs = parser.artist.parseArtistTopSongs(jsonObject)
         val topAlbums = parser.artist.parseArtistTopAlbums(jsonObject)
 
+        val singles = parser.artist.parseArtistSingles(jsonObject)
+        val dedicatedPlaylists = parser.artist.parseArtistDedicatedPlaylists(jsonObject)
+        val featuredPlaylists = parser.artist.parseArtistFeaturedPlaylists(jsonObject)
+
         cachedArtistId = artist.id
         cachedArtist = parsedArtist
         cachedTopSongs = topSongs
         cachedTopAlbums = topAlbums
+        cachedSingles = singles
+        cachedDedicatedPlaylists = dedicatedPlaylists
+        cachedFeaturedPlaylists = featuredPlaylists
 
         return parsedArtist
     }
@@ -84,6 +94,42 @@ class ArtistClientImpl(
                     list = topAlbums,
                     subtitle = "${topAlbums.size} albums",
                     more = createMoreFeed(artist, "albums")
+                )
+            )
+        }
+
+        val singles = cachedSingles ?: emptyList()
+        if (singles.isNotEmpty()) {
+            shelves.add(
+                Shelf.Lists.Items(
+                    id = "artist_singles",
+                    title = "Singles",
+                    list = singles,
+                    subtitle = "${singles.size} singles"
+                )
+            )
+        }
+
+        val dedicatedPlaylists = cachedDedicatedPlaylists ?: emptyList()
+        if (dedicatedPlaylists.isNotEmpty()) {
+            shelves.add(
+                Shelf.Lists.Items(
+                    id = "artist_dedicated_playlists",
+                    title = "Dedicated Playlists",
+                    list = dedicatedPlaylists,
+                    subtitle = "${dedicatedPlaylists.size} playlists"
+                )
+            )
+        }
+
+        val featuredPlaylists = cachedFeaturedPlaylists ?: emptyList()
+        if (featuredPlaylists.isNotEmpty()) {
+            shelves.add(
+                Shelf.Lists.Items(
+                    id = "artist_featured_playlists",
+                    title = "Featured In",
+                    list = featuredPlaylists,
+                    subtitle = "${featuredPlaylists.size} playlists"
                 )
             )
         }

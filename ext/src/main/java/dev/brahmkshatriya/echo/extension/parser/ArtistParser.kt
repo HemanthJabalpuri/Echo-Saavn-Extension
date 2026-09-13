@@ -1,15 +1,14 @@
 package dev.brahmkshatriya.echo.extension.parser
 
-import dev.brahmkshatriya.echo.common.models.Album
-import dev.brahmkshatriya.echo.common.models.Artist
+import dev.brahmkshatriya.echo.common.models.*
 import dev.brahmkshatriya.echo.common.models.ImageHolder.Companion.toImageHolder
-import dev.brahmkshatriya.echo.common.models.Track
 import dev.brahmkshatriya.echo.extension.utils.convertImageUrl
 import kotlinx.serialization.json.*
 
 class ArtistParser(
     private val trackParser: TrackParser,
-    private val albumParser: AlbumParser
+    private val albumParser: AlbumParser,
+    private val playlistParser: PlaylistParser
 ) : BaseParser() {
 
     // ===== SINGLE ARTIST PARSER =====
@@ -100,6 +99,24 @@ class ArtistParser(
     fun parseArtistTopAlbums(obj: JsonObject): List<Album> {
         return obj["topAlbums"]?.jsonArray?.mapNotNull {
             albumParser.parseAlbumToAlbum(it.jsonObject)
+        } ?: emptyList()
+    }
+
+    fun parseArtistSingles(obj: JsonObject): List<Album> {
+        return obj["singles"]?.jsonArray?.mapNotNull {
+            albumParser.parseAlbumToAlbum(it.jsonObject)
+        } ?: emptyList()
+    }
+
+    fun parseArtistDedicatedPlaylists(obj: JsonObject): List<Playlist> {
+        return obj["dedicated_artist_playlist"]?.jsonArray?.mapNotNull {
+            playlistParser.parsePlaylistToPlaylist(it.jsonObject)
+        } ?: emptyList()
+    }
+
+    fun parseArtistFeaturedPlaylists(obj: JsonObject): List<Playlist> {
+        return obj["featured_artist_playlist"]?.jsonArray?.mapNotNull {
+            playlistParser.parsePlaylistToPlaylist(it.jsonObject)
         } ?: emptyList()
     }
 
