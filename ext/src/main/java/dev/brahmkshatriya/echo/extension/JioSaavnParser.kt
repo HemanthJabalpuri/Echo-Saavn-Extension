@@ -7,7 +7,6 @@ class JioSaavnParser {
     val album = AlbumParser(track)
     val playlist = PlaylistParser(track)
     val artist = ArtistParser(track, album, playlist)
-    val search = SearchParser(track, album, artist, playlist)
     val home = HomeParser(track, album, artist, playlist)
     val radio = RadioParser(track)
 }
