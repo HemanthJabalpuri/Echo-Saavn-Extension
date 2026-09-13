@@ -4,6 +4,7 @@ import dev.brahmkshatriya.echo.common.clients.HomeFeedClient
 import dev.brahmkshatriya.echo.common.models.*
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeedData
 import dev.brahmkshatriya.echo.extension.*
+import dev.brahmkshatriya.echo.extension.utils.LANGUAGES
 
 class HomeFeedClientImpl(
     private val api: JioSaavnApi,
@@ -14,25 +15,15 @@ class HomeFeedClientImpl(
         val defaultLanguages = SaavnDependencies.getDefaultLanguages()
         
         val tabs = listOf(
-            Tab(id = "default", title = "Default"),
-            Tab(id = "hindi", title = "Hindi"),
-            Tab(id = "english", title = "English"),
-            Tab(id = "punjabi", title = "Punjabi"),
-            Tab(id = "tamil", title = "Tamil"),
-            Tab(id = "telugu", title = "Telugu"),
-            Tab(id = "marathi", title = "Marathi"),
-            Tab(id = "gujarati", title = "Gujarati"),
-            Tab(id = "bengali", title = "Bengali"),
-            Tab(id = "kannada", title = "Kannada"),
-            Tab(id = "bhojpuri", title = "Bhojpuri"),
-            Tab(id = "malayalam", title = "Malayalam"),
-            Tab(id = "urdu", title = "Urdu")
-        )
+            Tab(id = "default", title = "Default")
+        ) + LANGUAGES.map { lang ->
+            Tab(id = lang.lowercase(), title = lang)
+        }
 
         return Feed(tabs) { tab ->
             try {
                 val language = when (tab?.id) {
-                    "default", null -> defaultLanguages.joinToString(",")  // "hindi,telugu"
+                    "default", null -> defaultLanguages.joinToString(",")
                     else -> tab.id
                 }
                 val response = api.getHomeData(language)

@@ -30,32 +30,12 @@ class JioSaavnApi {
     companion object {
         private const val BASE_URL = "https://www.jiosaavn.com/api.php"
         
-        private const val SEARCH_ALL = "search.getResults"
         private const val SEARCH_SONGS = "search.getResults"
         private const val SEARCH_ALBUMS = "search.getAlbumResults"
         private const val SEARCH_ARTISTS = "search.getArtistResults"
         private const val SEARCH_PLAYLISTS = "search.getPlaylistResults"
 
-        private const val SONG_DETAILS = "webapi.get"
-        private const val ALBUM_DETAILS = "webapi.get"
-        private const val ARTIST_DETAILS = "webapi.get"
-        private const val PLAYLIST_DETAILS = "webapi.get"
-    }
-
-    suspend fun searchAll(query: String, page: Int = 1, limit: Int = 20): String {
-        val url = buildUrl(
-            call = SEARCH_ALL,
-            params = mapOf(
-                "q" to query,
-                "p" to page.toString(),
-                "n" to limit.toString(),
-                "_format" to "json",
-                "_marker" to "0",
-                "api_version" to "4",
-                "ctx" to "web6dot0"
-            )
-        )
-        return executeRequest(url)
+        private const val DETAILS = "webapi.get"
     }
 
     suspend fun searchSongs(query: String, page: Int = 1, limit: Int = 20): String {
@@ -123,7 +103,7 @@ class JioSaavnApi {
     
     suspend fun getSongDetails(songId: String): String {
         val url = buildUrl(
-            call = SONG_DETAILS,
+            call = DETAILS,
             params = mapOf(
                 "type" to "song",
                 "token" to songId,
@@ -138,7 +118,7 @@ class JioSaavnApi {
     
     suspend fun getAlbumDetails(albumId: String): String {
         val url = buildUrl(
-            call = ALBUM_DETAILS,
+            call = DETAILS,
             params = mapOf(
                 "type" to "album",
                 "token" to albumId,
@@ -193,7 +173,7 @@ class JioSaavnApi {
         val apiPage = page - 1
 
         val url = buildUrl(
-            call = ARTIST_DETAILS,
+            call = DETAILS,
             params = mapOf(
                 "type" to "artist",
                 "token" to artistId,
@@ -214,7 +194,7 @@ class JioSaavnApi {
 
     suspend fun getPlaylistDetails(playlistId: String): String {
         val url = buildUrl(
-            call = PLAYLIST_DETAILS,
+            call = DETAILS,
             params = mapOf(
                 "type" to "playlist",
                 "token" to playlistId,
@@ -253,40 +233,6 @@ class JioSaavnApi {
         return response.body?.string() ?: throw Exception("Empty response body")
     }
 
-    suspend fun createArtistRadioStation(artistName: String, language: String = "hindi"): String {
-        val url = buildUrl(
-            call = "webradio.createArtistStation",
-            params = mapOf(
-                "mode" to "",
-                "artistid" to "",
-                "name" to artistName,
-                "query" to artistName,
-                "language" to language,
-                "_format" to "json",
-                "_marker" to "0",
-                "api_version" to "4",
-                "ctx" to "web6dot0"
-            )
-        )
-        return executeRequest(url)
-    }
-
-    suspend fun getRadioSongs(stationId: String, limit: Int = 20): String {
-        val url = buildUrl(
-            call = "webradio.getSong",
-            params = mapOf(
-                "stationid" to stationId,
-                "k" to limit.toString(),
-                "next" to "1",
-                "_format" to "json",
-                "_marker" to "0",
-                "api_version" to "4",
-                "ctx" to "web6dot0"
-            )
-        )
-        return executeRequest(url)
-    }
-
     suspend fun createSongStation(songId: String): String {
         val encodedSongId = java.net.URLEncoder.encode(songId, "UTF-8")
         val entityId = "[\"$encodedSongId\"]"
@@ -302,14 +248,6 @@ class JioSaavnApi {
         println("DEBUG: Fetching song suggestions from station: $stationId")
         val response = executeRequest(url)
         println("DEBUG: Song suggestions response length: ${response.length}")
-        return response
-    }
-    @Deprecated("Use createSongStation and getSongSuggestions instead", ReplaceWith("getSongSuggestions(createSongStation(trackId), limit)"))
-    suspend fun getSimilarSongs(trackId: String): String {
-        val url = "$BASE_URL?__call=reco.getreco&api_version=4&_format=json&_marker=0&ctx=wap6dot0&language=english&pid=$trackId"
-        println("DEBUG: Fetching similar songs from: $url (DEPRECATED - unreliable)")
-        val response = executeRequest(url)
-        println("DEBUG: Similar songs response length: ${response.length}")
         return response
     }
     
