@@ -17,9 +17,9 @@ class ArtistParser(
         // Try detail format first, fallback to search format
         val permaUrl = obj["urls"]?.jsonObject?.get("overview")?.jsonPrimitive?.content
             ?: obj["perma_url"]?.jsonPrimitive?.content
-            ?: return null
-        
-        val id = permaUrl.substringAfterLast("/")
+            ?: ""
+        val numericId = obj["id"]?.jsonPrimitive?.content ?: ""
+        val id = if (permaUrl.isNotBlank()) permaUrl.substringAfterLast("/") else numericId
         if (id.isBlank()) return null
 
         return Artist(
@@ -34,7 +34,8 @@ class ArtistParser(
                 "isVerified" to (obj["isVerified"]?.jsonPrimitive?.booleanOrNull ?: false).toString(),
                 "dominantLanguage" to (obj["dominantLanguage"]?.jsonPrimitive?.content ?: ""),
                 "dominantType" to (obj["dominantType"]?.jsonPrimitive?.content ?: ""),
-                "permaUrl" to permaUrl
+                "permaUrl" to permaUrl,
+                "artistId" to numericId
             )
         )
     }

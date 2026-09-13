@@ -151,7 +151,45 @@ class JioSaavnApi {
         return executeRequest(url)
     }
 
-    suspend fun getArtistDetails(artistId: String, songCount: Int = 10, albumCount: Int = 10, page: Int = 1): String {
+    suspend fun getArtistDetails(
+        token: String?,
+        artistId: String?,
+        songCount: Int = 10,
+        albumCount: Int = 10,
+        page: Int = 1
+    ): String {
+        return if (!artistId.isNullOrBlank()) {
+            getArtistDetailsById(artistId, songCount, albumCount, page)
+        } else if (!token.isNullOrBlank()) {
+            getArtistDetailsByToken(token, songCount, albumCount, page)
+        } else {
+            throw Exception("Either token or artistId must be provided")
+        }
+    }
+
+    private suspend fun getArtistDetailsById(artistId: String, songCount: Int, albumCount: Int, page: Int): String {
+        val apiPage = page - 1
+
+        val url = buildUrl(
+            call = "artist.getArtistPageDetails",
+            params = mapOf(
+                "artistId" to artistId,
+                "n_song" to songCount.toString(),
+                "n_album" to albumCount.toString(),
+                "page" to apiPage.toString(),
+                "sub_type" to "",
+                "category" to "popularity",
+                "sort_order" to "asc",
+                "_format" to "json",
+                "_marker" to "0",
+                "api_version" to "4",
+                "ctx" to "web6dot0"
+            )
+        )
+        return executeRequest(url)
+    }
+
+    private suspend fun getArtistDetailsByToken(artistId: String, songCount: Int, albumCount: Int, page: Int): String {
         val apiPage = page - 1
 
         val url = buildUrl(

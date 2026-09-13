@@ -29,7 +29,10 @@ class ArtistClientImpl(
         }
 
         // Fetch 10/10
-        val response = api.getArtistDetails(artist.id, songCount = 10, albumCount = 10, page = 1)
+        // Artist details in Song suggestions don't have perma_url, so fallback to artistId
+        val token = artist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
+        val numericId = artist.extras["artistId"]?.takeIf { it.isNotBlank() }
+        val response = api.getArtistDetails(token, numericId, songCount = 10, albumCount = 10, page = 1)
         val jsonObject = json.parseToJsonElement(response).jsonObject
 
         // Parse and cache
@@ -94,8 +97,10 @@ class ArtistClientImpl(
                 PagedData.Continuous<Shelf> { continuation ->
                     val page = continuation?.toIntOrNull() ?: 2
                     try {
+                        val token = artist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
+                        val numericId = artist.extras["artistId"]?.takeIf { it.isNotBlank() }
                         val response = api.getArtistDetails(
-                            artist.id,
+                            token, numericId,
                             songCount = if (type == "songs") 10 else 0,
                             albumCount = if (type == "albums") 10 else 0,
                             page = page

@@ -17,16 +17,7 @@ class TrackParser : BaseParser() {
         val artistMap = moreInfo?.get("artistMap")?.jsonObject
 
         // Artists
-        val primaryArtists = artistMap?.get("primary_artists")?.jsonArray?.let { extractArtistNames(it) } ?: ""
-        val primaryArtistsId = artistMap?.get("primary_artists")?.jsonArray?.let { extractArtistIds(it) } ?: ""
-        val artistNames = primaryArtists.split(", ").filter { it.isNotBlank() }
-        val artistIds = primaryArtistsId.split(", ").filter { it.isNotBlank() }
-        val artists = artistNames.mapIndexed { index, name ->
-            Artist(
-                id = if (index < artistIds.size) artistIds[index] else "",
-                name = name
-            )
-        }
+        val artists = parseArtistsFromArtistMap(artistMap)
 
         // Album
         val albumId = moreInfo?.get("album_url")?.jsonPrimitive?.content?.substringAfterLast("/")

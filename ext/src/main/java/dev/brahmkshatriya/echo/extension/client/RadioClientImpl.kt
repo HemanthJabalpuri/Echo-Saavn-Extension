@@ -100,7 +100,9 @@ class RadioClientImpl(
             val primaryArtist = artists.first()
             println("DEBUG: Creating artist-based radio for: ${primaryArtist.name}")
 
-            val artistResponse = api.getArtistDetails(primaryArtist.id, songCount = 50, albumCount = 0)
+            val token = primaryArtist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
+            val numericId = primaryArtist.extras["artistId"]?.takeIf { it.isNotBlank() }
+            val artistResponse = api.getArtistDetails(token, numericId, songCount = 50, albumCount = 0)
             val jsonObject = json.parseToJsonElement(artistResponse).jsonObject  // ← Parse JSON
             val topSongs = parser.artist.parseArtistTopSongs(jsonObject)  // ← Get top songs
 
@@ -145,7 +147,9 @@ class RadioClientImpl(
 
     internal suspend fun createRadioFromArtist(artist: Artist): Radio {
         return try {
-            val response = api.getArtistDetails(artist.id, songCount = 50, albumCount = 10)
+            val token = artist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
+            val numericId = artist.extras["artistId"]?.takeIf { it.isNotBlank() }
+            val response = api.getArtistDetails(token, numericId, songCount = 50, albumCount = 10)
             val jsonObject = json.parseToJsonElement(response).jsonObject
 
             val artistData = parser.artist.parseArtistToArtist(jsonObject)
