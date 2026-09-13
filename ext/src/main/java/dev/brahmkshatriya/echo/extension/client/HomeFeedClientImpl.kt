@@ -3,8 +3,7 @@ package dev.brahmkshatriya.echo.extension.client
 import dev.brahmkshatriya.echo.common.clients.HomeFeedClient
 import dev.brahmkshatriya.echo.common.models.*
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeedData
-import dev.brahmkshatriya.echo.extension.JioSaavnApi
-import dev.brahmkshatriya.echo.extension.JioSaavnParser
+import dev.brahmkshatriya.echo.extension.*
 
 class HomeFeedClientImpl(
     private val api: JioSaavnApi,
@@ -12,7 +11,10 @@ class HomeFeedClientImpl(
 ) : HomeFeedClient {
 
     override suspend fun loadHomeFeed(): Feed<Shelf> {
+        val defaultLanguages = SaavnDependencies.getDefaultLanguages()
+        
         val tabs = listOf(
+            Tab(id = "default", title = "Default"),
             Tab(id = "hindi", title = "Hindi"),
             Tab(id = "english", title = "English"),
             Tab(id = "punjabi", title = "Punjabi"),
@@ -29,13 +31,14 @@ class HomeFeedClientImpl(
 
         return Feed(tabs) { tab ->
             try {
-                val language = tab?.id ?: "hindi"
+                val language = when (tab?.id) {
+                    "default", null -> defaultLanguages.joinToString(",")  // "hindi,telugu"
+                    else -> tab.id
+                }
                 val response = api.getHomeData(language)
                 val shelves = parser.home.parseHomeFeed(response)
                 shelves.toFeedData()
             } catch (e: Exception) {
-                println("DEBUG: Failed to load home feed for tab ${tab?.id}: ${e.message}")
-                e.printStackTrace()
                 emptyList<Shelf>().toFeedData()
             }
         }
