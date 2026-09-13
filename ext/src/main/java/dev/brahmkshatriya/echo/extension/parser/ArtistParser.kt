@@ -14,35 +14,78 @@ class ArtistParser(
 
     // ===== SINGLE ARTIST PARSER =====
     fun parseArtistToArtist(obj: JsonObject): Artist? {
-        val id = obj["urls"]?.jsonObject?.get("overview")?.jsonPrimitive?.content?.substringAfterLast("/")
+        // Try detail format first, fallback to search format
+        val permaUrl = obj["urls"]?.jsonObject?.get("overview")?.jsonPrimitive?.content
+            ?: obj["perma_url"]?.jsonPrimitive?.content
             ?: return null
-
-        val name = decodeHtml(obj["name"]?.jsonPrimitive?.content ?: "")
-        val image = obj["image"]?.jsonPrimitive?.content ?: ""
-        val followerCount = obj["follower_count"]?.jsonPrimitive?.content ?: "0"
-        val type = obj["type"]?.jsonPrimitive?.content ?: "artist"
-        val isVerified = obj["isVerified"]?.jsonPrimitive?.booleanOrNull ?: false
-        val dominantLanguage = obj["dominantLanguage"]?.jsonPrimitive?.content ?: ""
-        val dominantType = obj["dominantType"]?.jsonPrimitive?.content ?: ""
-        val subtitle = obj["subtitle"]?.jsonPrimitive?.content ?: ""
+        
+        val id = permaUrl.substringAfterLast("/")
+        if (id.isBlank()) return null
 
         return Artist(
             id = id,
-            name = name,
-            cover = convertImageUrl(image).toImageHolder(),
-            bio = null,
-            background = convertImageUrl(image).toImageHolder(),
-            banners = emptyList(),
-            subtitle = subtitle,
+            name = decodeHtml(obj["name"]?.jsonPrimitive?.content ?: ""),
+            cover = convertImageUrl(obj["image"]?.jsonPrimitive?.content).toImageHolder(),
+            bio = parseBio(obj["bio"]?.jsonPrimitive?.content),
+            subtitle = obj["subtitle"]?.jsonPrimitive?.content,
             extras = mapOf(
-                "followerCount" to followerCount,
-                "type" to type,
-                "isVerified" to isVerified.toString(),
-                "dominantLanguage" to dominantLanguage,
-                "dominantType" to dominantType,
-                "permaUrl" to (obj["urls"]?.jsonObject?.get("overview")?.jsonPrimitive?.content ?: "")
+                "followerCount" to (obj["follower_count"]?.jsonPrimitive?.content ?: "0"),
+                "type" to (obj["type"]?.jsonPrimitive?.content ?: "artist"),
+                "isVerified" to (obj["isVerified"]?.jsonPrimitive?.booleanOrNull ?: false).toString(),
+                "dominantLanguage" to (obj["dominantLanguage"]?.jsonPrimitive?.content ?: ""),
+                "dominantType" to (obj["dominantType"]?.jsonPrimitive?.content ?: ""),
+                "permaUrl" to permaUrl
             )
         )
+    }
+
+    private fun parseBio(bioJsonString: String?): String? {
+        if (bioJsonString.isNullOrBlank()) return null
+        
+        return try {
+            val jsonArray = json.parseToJsonElement(bioJsonString).jsonArray
+            jsonArray
+                .sortedBy { it.jsonObject["sequence"]?.jsonPrimitive?.intOrNull ?: 0 }
+                .mapIndexedNotNull { index, element ->
+                    val obj = element.jsonObject
+                    val title = obj["title"]?.jsonPrimitive?.content
+                    val text = obj["text"]?.jsonPrimitive?.content
+                    if (text.isNullOrBlank()) return@mapIndexedNotNull null
+                    
+                    val cleaned = cleanBioText(text)
+                    
+                    if (index == 0 || title.isNullOrBlank()) cleaned
+                    else "$title\n$cleaned"
+                }
+                .joinToString("\n\n")
+                .ifBlank { null }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun cleanBioText(text: String): String {
+        return text
+            .replace("\r\n", "\n")
+            .replace("\r", "\n")
+            .replace(Regex("\n{3,}"), "\n\n")
+            // Fix mojibake (UTF-8 bytes interpreted as Latin-1)
+            .replace("\u00e2\u20ac\u02dc", "'")   // '
+            .replace("\u00e2\u20ac\u2122", "'")   // '
+            .replace("\u00e2\u20ac\u0153", "\"")  // "
+            .replace("\u00e2\u20ac\u009d", "\"")  // "
+            .replace("\u00e2\u20ac\u201c", "—")   // —
+            .replace("\u00e2\u20ac\u201d", "—")   // —
+            .replace("\u00e2\u20ac\u00a6", "…")   // …
+            .replace("\u00e2\u20ac\u00a2", "•")   // bullet point
+            .replace("\u00c2\u00a0", " ")         // non-breaking space
+            .replace("\u00c3\u00a9", "é")
+            .replace("\u00c3\u00a8", "è")
+            .replace("\u00c3\u00a0", "à")
+            .replace("\u00c3\u00b1", "ñ")
+            .replace("\u00c3\u00b4", "ô")
+            .replace("\u00c3\u00a7", "ç")
+            .trim()
     }
 
     // ===== TOP SONGS =====

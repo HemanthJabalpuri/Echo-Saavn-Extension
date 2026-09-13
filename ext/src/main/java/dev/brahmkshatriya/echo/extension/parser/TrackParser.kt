@@ -24,13 +24,7 @@ class TrackParser : BaseParser() {
         val artists = artistNames.mapIndexed { index, name ->
             Artist(
                 id = if (index < artistIds.size) artistIds[index] else "",
-                name = name,
-                cover = null,
-                bio = null,
-                background = null,
-                banners = emptyList(),
-                subtitle = null,
-                extras = emptyMap()
+                name = name
             )
         }
 
@@ -42,18 +36,9 @@ class TrackParser : BaseParser() {
             Album(
                 id = it,
                 title = decodeHtml(albumTitle),
-                type = null,
                 cover = convertImageUrl(image).toImageHolder(),
-                artists = emptyList(),
-                trackCount = null,
-                duration = null,
-                releaseDate = null,
-                description = null,
-                background = null,
                 label = moreInfo?.get("label")?.jsonPrimitive?.content,
-                isExplicit = obj["explicit_content"]?.jsonPrimitive?.content == "1",
-                subtitle = null,
-                extras = emptyMap()
+                isExplicit = obj["explicit_content"]?.jsonPrimitive?.content == "1"
             )
         }
 
@@ -76,21 +61,13 @@ class TrackParser : BaseParser() {
         return Track(
             id = id,
             title = decodeHtml(obj["title"]?.jsonPrimitive?.content ?: ""),
-            type = Track.Type.Song,
             cover = convertImageUrl(image).toImageHolder(),
             artists = artists,
             album = album,
             duration = parseDuration(moreInfo?.get("duration")?.jsonPrimitive?.content ?: "0"),
-            playedDuration = null,
             plays = obj["play_count"]?.jsonPrimitive?.content?.toLongOrNull(),
             releaseDate = parseDate(moreInfo?.get("release_date")?.jsonPrimitive?.content),
-            description = null,
-            background = convertImageUrl(image).toImageHolder(),
             genres = listOf(obj["language"]?.jsonPrimitive?.content ?: "").filter { it.isNotBlank() },
-            isrc = null,
-            albumOrderNumber = null,
-            albumDiscNumber = null,
-            playlistAddedDate = null,
             isExplicit = obj["explicit_content"]?.jsonPrimitive?.content == "1",
             subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
             extras = mapOf(
@@ -102,7 +79,6 @@ class TrackParser : BaseParser() {
                 "label" to (moreInfo?.get("label")?.jsonPrimitive?.content ?: ""),
                 "copyright" to (moreInfo?.get("copyright_text")?.jsonPrimitive?.content ?: "")
             ),
-            isPlayable = Track.Playable.Yes,
             streamables = streamables
         )
     }

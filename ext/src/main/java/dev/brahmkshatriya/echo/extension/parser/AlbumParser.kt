@@ -27,12 +27,6 @@ class AlbumParser(
             Artist(
                 id = if (index < artistIds.size) artistIds[index] else "",
                 name = name,
-                cover = null,
-                bio = null,
-                background = null,
-                banners = emptyList(),
-                subtitle = null,
-                extras = emptyMap()
             )
         }
 
@@ -48,9 +42,7 @@ class AlbumParser(
             cover = convertImageUrl(image).toImageHolder(),
             artists = artists,
             trackCount = songCount.toLongOrNull(),
-            duration = null,
             releaseDate = parseDate(obj["year"]?.jsonPrimitive?.content),
-            description = null,
             background = convertImageUrl(image).toImageHolder(),
             label = moreInfo?.get("label")?.jsonPrimitive?.content,
             isExplicit = obj["explicit_content"]?.jsonPrimitive?.content == "1",

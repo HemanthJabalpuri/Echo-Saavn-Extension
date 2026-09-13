@@ -32,7 +32,10 @@ fun decryptUrl(encryptedUrl: String): Map<String, String>? {
 }
 
 fun convertImageUrl(url: String?): String {
-    return url?.replace("150x150", "500x500") ?: ""
+    return url
+        ?.replace("50x50", "500x500")
+        ?.replace("150x150", "500x500")
+        ?: ""
 }
 
 fun parseDuration(duration: String): Long? {
