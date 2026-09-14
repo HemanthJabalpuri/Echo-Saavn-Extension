@@ -11,21 +11,22 @@ class RadioApi : BaseApi() {
         val encodedSongId = URLEncoder.encode(songId, "UTF-8")
         val entityId = "[\"$encodedSongId\"]"
         return executeRequest(
-            buildUrl("webradio.createEntityStation", mapOf(
+            call = "webradio.createEntityStation",
+            params = mapOf(
                 "entity_id" to entityId,
                 "entity_type" to "queue"
-            ))
+            )
         )
     }
 
-    suspend fun getSongSuggestions(
-        stationId: String,
-        limit: Int = DEFAULT_SEARCH_LIMIT
-    ): JsonObject = executeRequest(
-        buildUrl("webradio.getSong", mapOf(
-            "stationid" to stationId,
-            "k" to limit.toString(),
-            "next" to "1"
-        ))
-    )
+    suspend fun getSongSuggestions(stationId: String, limit: Int = DEFAULT_SEARCH_LIMIT): JsonObject =
+        executeRequest(
+            call = "webradio.getSong",
+            params = mapOf(
+                "stationid" to stationId,
+                "k" to limit.toString(),
+                "next" to "1"
+            )
+        )
+
 }

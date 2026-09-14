@@ -9,17 +9,19 @@ class AlbumApi : BaseApi() {
         page: Int = 1,
         limit: Int = DEFAULT_SEARCH_LIMIT
     ): JsonObject = executeRequest(
-        buildUrl("search.getAlbumResults", mapOf(
+        call = "search.getAlbumResults",
+        params = mapOf(
             "q" to query,
             "p" to page.toString(),
             "n" to limit.toString()
-        ))
+        )
     )
 
     suspend fun getDetails(albumId: String): JsonObject = executeRequest(
-        buildUrl("webapi.get", mapOf(
+        call = "webapi.get",
+        params = mapOf(
             "type" to "album",
             "token" to albumId
-        ))
+        )
     )
 }

@@ -30,28 +30,29 @@ open class BaseApi {
         }
         .build()
 
-    protected fun buildUrl(call: String, params: Map<String, String>): String {
+    protected suspend fun executeRequest(
+        call: String,
+        params: Map<String, String> = emptyMap(),
+        headers: Map<String, String> = emptyMap()
+    ): JsonObject {
         val allParams = mapOf(
             "_format" to "json",
             "_marker" to "0",
             "api_version" to "4",
             "ctx" to defaultCtx
         ) + params
+
         val queryString = allParams.entries.joinToString("&") { (key, value) ->
             "$key=${URLEncoder.encode(value, "UTF-8")}"
         }
-        return "$BASE_URL?__call=$call&$queryString"
-    }
+        val url = "$BASE_URL?__call=$call&$queryString"
 
-    protected suspend fun executeRequest(
-        url: String,
-        headers: Map<String, String> = emptyMap()
-    ): JsonObject {
         println("DEBUG: Request URL: $url")
+
         val builder = Request.Builder().url(url).get()
         headers.forEach { (key, value) -> builder.header(key, value) }
-        val request = builder.build()
-        val response = client.newCall(request).await()
+        val response = client.newCall(builder.build()).await()
+
         if (!response.isSuccessful) {
             throw Exception("HTTP ${response.code}: ${response.message}")
         }

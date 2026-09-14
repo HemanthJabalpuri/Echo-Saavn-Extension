@@ -9,17 +9,19 @@ class TrackApi : BaseApi() {
         page: Int = 1,
         limit: Int = DEFAULT_SEARCH_LIMIT
     ): JsonObject = executeRequest(
-        buildUrl("search.getResults", mapOf(
+        call = "search.getResults",
+        params = mapOf(
             "q" to query,
             "p" to page.toString(),
             "n" to limit.toString()
-        ))
+        )
     )
 
     suspend fun getDetails(songId: String): JsonObject = executeRequest(
-        buildUrl("webapi.get", mapOf(
+        call = "webapi.get",
+        params = mapOf(
             "type" to "song",
             "token" to songId
-        ))
+        )
     )
 }

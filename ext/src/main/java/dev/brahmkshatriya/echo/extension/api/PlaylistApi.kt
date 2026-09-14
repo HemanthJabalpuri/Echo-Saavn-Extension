@@ -9,19 +9,21 @@ class PlaylistApi : BaseApi() {
         page: Int = 1,
         limit: Int = DEFAULT_SEARCH_LIMIT
     ): JsonObject = executeRequest(
-        buildUrl("search.getPlaylistResults", mapOf(
+        call = "search.getPlaylistResults",
+        params = mapOf(
             "q" to query,
             "p" to page.toString(),
             "n" to limit.toString()
-        ))
+        )
     )
 
     suspend fun getDetails(playlistId: String): JsonObject = executeRequest(
-        buildUrl("webapi.get", mapOf(
+        call = "webapi.get",
+        params = mapOf(
             "type" to "playlist",
             "token" to playlistId,
             "p" to "1",
             "n" to "100"
-        ))
+        )
     )
 }

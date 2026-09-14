@@ -9,11 +9,12 @@ class ArtistApi : BaseApi() {
         page: Int = 1,
         limit: Int = DEFAULT_SEARCH_LIMIT
     ): JsonObject = executeRequest(
-        buildUrl("search.getArtistResults", mapOf(
+        call = "search.getArtistResults",
+        params = mapOf(
             "q" to query,
             "p" to page.toString(),
             "n" to limit.toString()
-        ))
+        )
     )
 
     suspend fun getDetails(
@@ -34,7 +35,8 @@ class ArtistApi : BaseApi() {
         albumCount: Int,
         page: Int
     ): JsonObject = executeRequest(
-        buildUrl("artist.getArtistPageDetails", mapOf(
+        call = "artist.getArtistPageDetails",
+        params = mapOf(
             "artistId" to artistId,
             "n_song" to songCount.toString(),
             "n_album" to albumCount.toString(),
@@ -42,7 +44,7 @@ class ArtistApi : BaseApi() {
             "sub_type" to "",
             "category" to "popularity",
             "sort_order" to "asc"
-        ))
+        )
     )
 
     private suspend fun getDetailsByToken(
@@ -51,7 +53,8 @@ class ArtistApi : BaseApi() {
         albumCount: Int,
         page: Int
     ): JsonObject = executeRequest(
-        buildUrl("webapi.get", mapOf(
+        call = "webapi.get",
+        params = mapOf(
             "type" to "artist",
             "token" to token,
             "n_song" to songCount.toString(),
@@ -60,6 +63,6 @@ class ArtistApi : BaseApi() {
             "sub_type" to "",
             "category" to "popularity",
             "sort_order" to "asc"
-        ))
+        )
     )
 }
