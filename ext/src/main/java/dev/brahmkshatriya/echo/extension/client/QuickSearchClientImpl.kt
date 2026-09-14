@@ -28,28 +28,28 @@ class QuickSearchClientImpl(
     private suspend fun fetchAll(query: String, limit: Int = 10): SearchResults = coroutineScope {
         val songsDeferred = async {
             try {
-                val response = api.searchSongs(query, page = 1, limit = limit)
+                val response = api.track.search(query, page = 1, limit = limit)
                 parser.track.parseSongSearchResults(response)
             } catch (e: Exception) { emptyList() }
         }
         
         val albumsDeferred = async {
             try {
-                val response = api.searchAlbums(query, page = 1, limit = limit)
+                val response = api.album.search(query, page = 1, limit = limit)
                 parser.album.parseAlbumSearchResults(response)
             } catch (e: Exception) { emptyList() }
         }
         
         val artistsDeferred = async {
             try {
-                val response = api.searchArtists(query, page = 1, limit = limit)
+                val response = api.artist.search(query, page = 1, limit = limit)
                 parser.artist.parseArtistSearchResults(response)
             } catch (e: Exception) { emptyList() }
         }
         
         val playlistsDeferred = async {
             try {
-                val response = api.searchPlaylists(query, page = 1, limit = limit)
+                val response = api.playlist.search(query, page = 1, limit = limit)
                 parser.playlist.parsePlaylistSearchResults(response)
             } catch (e: Exception) { emptyList() }
         }
@@ -143,7 +143,7 @@ class QuickSearchClientImpl(
     private fun createSongsFeed(query: String) = PagedData.Continuous<Shelf> { continuation ->
         val page = continuation?.toIntOrNull() ?: 1
         try {
-            val response = api.searchSongs(query, page = page, limit = 20)
+            val response = api.track.search(query, page = page, limit = 20)
             val songs = parser.track.parseSongSearchResults(response)
             
             val items = songs.map { it.toShelf() }
@@ -157,7 +157,7 @@ class QuickSearchClientImpl(
     private fun createAlbumsFeed(query: String) = PagedData.Continuous<Shelf> { continuation ->
         val page = continuation?.toIntOrNull() ?: 1
         try {
-            val response = api.searchAlbums(query, page = page, limit = 20)
+            val response = api.album.search(query, page = page, limit = 20)
             val albums = parser.album.parseAlbumSearchResults(response)
             
             val items = albums.map { it.toShelf() }
@@ -171,7 +171,7 @@ class QuickSearchClientImpl(
     private fun createArtistsFeed(query: String) = PagedData.Continuous<Shelf> { continuation ->
         val page = continuation?.toIntOrNull() ?: 1
         try {
-            val response = api.searchArtists(query, page = page, limit = 20)
+            val response = api.artist.search(query, page = page, limit = 20)
             val artists = parser.artist.parseArtistSearchResults(response)
             
             val items = artists.map { it.toShelf() }
@@ -185,7 +185,7 @@ class QuickSearchClientImpl(
     private fun createPlaylistsFeed(query: String) = PagedData.Continuous<Shelf> { continuation ->
         val page = continuation?.toIntOrNull() ?: 1
         try {
-            val response = api.searchPlaylists(query, page = page, limit = 20)
+            val response = api.playlist.search(query, page = page, limit = 20)
             val playlists = parser.playlist.parsePlaylistSearchResults(response)
             
             val items = playlists.map { it.toShelf() }

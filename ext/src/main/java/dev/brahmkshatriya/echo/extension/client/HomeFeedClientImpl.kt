@@ -26,7 +26,7 @@ class HomeFeedClientImpl(
                     "default", null -> defaultLanguages.joinToString(",")
                     else -> tab.id
                 }
-                val response = api.getHomeData(language)
+                val response = api.home.getHomeData(language)
                 val shelves = parser.home.parseHomeFeed(response)
                 shelves.toFeedData()
             } catch (e: Exception) {

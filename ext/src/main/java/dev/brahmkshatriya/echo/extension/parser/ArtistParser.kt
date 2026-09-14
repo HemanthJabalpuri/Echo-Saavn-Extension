@@ -11,7 +11,6 @@ class ArtistParser(
     private val playlistParser: PlaylistParser
 ) : BaseParser() {
 
-    // ===== SINGLE ARTIST PARSER =====
     fun parseArtistToArtist(obj: JsonObject): Artist? {
         // Try detail format first, fallback to search format
         val permaUrl = obj["urls"]?.jsonObject?.get("overview")?.jsonPrimitive?.content
@@ -23,16 +22,11 @@ class ArtistParser(
 
         return Artist(
             id = id,
-            name = decodeHtml(obj["name"]?.jsonPrimitive?.content ?: ""),
+            name = decodeHtml(obj["name"]?.jsonPrimitive?.content ?: obj["title"]?.jsonPrimitive?.content ?: ""),
             cover = convertImageUrl(obj["image"]?.jsonPrimitive?.content).toImageHolder(),
             bio = parseBio(obj["bio"]?.jsonPrimitive?.content),
             subtitle = obj["subtitle"]?.jsonPrimitive?.content,
             extras = mapOf(
-                "followerCount" to (obj["follower_count"]?.jsonPrimitive?.content ?: "0"),
-                "type" to (obj["type"]?.jsonPrimitive?.content ?: "artist"),
-                "isVerified" to (obj["isVerified"]?.jsonPrimitive?.booleanOrNull ?: false).toString(),
-                "dominantLanguage" to (obj["dominantLanguage"]?.jsonPrimitive?.content ?: ""),
-                "dominantType" to (obj["dominantType"]?.jsonPrimitive?.content ?: ""),
                 "permaUrl" to permaUrl,
                 "artistId" to numericId
             )
@@ -120,23 +114,16 @@ class ArtistParser(
         } ?: emptyList()
     }
 
-    // ===== IS RADIO PRESENT =====
-    fun parseArtistIsRadioPresent(obj: JsonObject): Boolean {
-        return obj["isRadioPresent"]?.jsonPrimitive?.booleanOrNull ?: false
-    }
-
     // ===== SEARCH RESULTS =====
-    fun parseArtistSearchResults(jsonString: String): List<Artist> {
-        val jsonObject = json.parseToJsonElement(jsonString).jsonObject
-        val results = jsonObject["results"]?.jsonArray ?: return emptyList()
+    fun parseArtistSearchResults(obj: JsonObject): List<Artist> {
+        val results = obj["results"]?.jsonArray ?: return emptyList()
         return results.mapNotNull { parseArtistToArtist(it.jsonObject) }
     }
 
     // ===== DETAILS =====
-    fun parseArtistDetails(jsonString: String): Artist? {
+    fun parseArtistDetails(obj: JsonObject): Artist? {
         return try {
-            val jsonObject = json.parseToJsonElement(jsonString).jsonObject
-            parseArtistToArtist(jsonObject)
+            parseArtistToArtist(obj)
         } catch (e: Exception) {
             println("DEBUG: Failed to parse artist details: ${e.message}")
             null

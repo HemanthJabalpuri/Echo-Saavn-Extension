@@ -11,16 +11,15 @@ class HomeParser(
     private val playlistParser: PlaylistParser
 ) : BaseParser() {
 
-    fun parseHomeFeed(jsonString: String): List<Shelf> {
+    fun parseHomeFeed(obj: JsonObject): List<Shelf> {
         return try {
-            val jsonObject = json.parseToJsonElement(jsonString).jsonObject
-            val modules = jsonObject["modules"]?.jsonObject ?: return emptyList()
+            val modules = obj["modules"]?.jsonObject ?: return emptyList()
             
             val shelves = mutableListOf<Shelf>()
             
             modules.keys.forEach { key ->
                 val moduleMeta = modules[key]?.jsonObject ?: return@forEach
-                val sectionData = jsonObject[key]?.jsonArray ?: return@forEach
+                val sectionData = obj[key]?.jsonArray ?: return@forEach
                 
                 val title = decodeHtml(moduleMeta["title"]?.jsonPrimitive?.content ?: "")
                 if (title.isBlank()) return@forEach

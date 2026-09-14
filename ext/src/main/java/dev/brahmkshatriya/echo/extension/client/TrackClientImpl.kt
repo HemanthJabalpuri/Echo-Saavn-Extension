@@ -87,11 +87,11 @@ class TrackClientImpl(
     override suspend fun loadFeed(track: Track): Feed<Shelf> {
         return try {
             val songId = track.extras["songId"] ?: track.id
-            val response = api.createSongStation(songId)
+            val response = api.radio.createSongStation(songId)
             val stationId = parser.radio.parseStationId(response)
             
             if (stationId != null) {
-                val suggestionsResponse = api.getSongSuggestions(stationId, limit = 20)
+                val suggestionsResponse = api.radio.getSongSuggestions(stationId, limit = 20)
                 val songs = parser.radio.parseSongSuggestions(suggestionsResponse)
                 
                 if (songs.isNotEmpty()) {

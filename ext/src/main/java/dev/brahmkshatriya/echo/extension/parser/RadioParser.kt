@@ -8,11 +8,9 @@ class RadioParser(
     private val trackParser: TrackParser
 ) : BaseParser() {
 
-    fun parseStationId(jsonString: String): String? {
+    fun parseStationId(obj: JsonObject): String? {
         return try {
-            println("DEBUG: Parsing station ID from response (first 500 chars): ${jsonString.take(500)}")
-            val jsonElement = json.parseToJsonElement(jsonString)
-            val stationId = jsonElement.jsonObject["stationid"]?.jsonPrimitive?.content
+            val stationId = obj["stationid"]?.jsonPrimitive?.content
             println("DEBUG: Extracted station ID: $stationId")
             stationId
         } catch (e: Exception) {
@@ -20,16 +18,12 @@ class RadioParser(
             null
         }
     }
-    
-    fun parseSongSuggestions(jsonString: String): List<Track> {
-        return try {
-            println("DEBUG: Parsing song suggestions (first 500 chars): ${jsonString.take(500)}")
-            val jsonElement = json.parseToJsonElement(jsonString)
-            val jsonObject = jsonElement.jsonObject
-            
+
+    fun parseSongSuggestions(obj: JsonObject): List<Track> {
+        return try {            
             val songs = mutableListOf<Track>()
             
-            jsonObject.forEach { (key, value) ->
+            obj.forEach { (key, value) ->
                 if (key != "stationid") {
                     try {
                         val songObject = value.jsonObject["song"]?.jsonObject

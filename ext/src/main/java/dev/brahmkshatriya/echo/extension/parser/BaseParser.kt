@@ -21,18 +21,6 @@ open class BaseParser {
             .replace("&gt;", ">")
     }
     
-    protected fun extractArtistNames(array: JsonArray): String {
-        return array.mapNotNull {
-            it.jsonObject["name"]?.jsonPrimitive?.content
-        }.joinToString(", ")
-    }
-    
-    protected fun extractArtistIds(array: JsonArray): String {
-        return array.mapNotNull {
-            it.jsonObject["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/")
-        }.joinToString(", ")
-    }
-
     protected fun parseArtistsFromArtistMap(artistMap: JsonObject?): List<Artist> {
         val primaryArtists = artistMap?.get("primary_artists")?.jsonArray ?: return emptyList()
         

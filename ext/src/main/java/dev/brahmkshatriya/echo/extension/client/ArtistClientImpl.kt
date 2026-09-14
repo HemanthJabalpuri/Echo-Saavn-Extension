@@ -35,18 +35,17 @@ class ArtistClientImpl(
         // Artist details in Song suggestions don't have perma_url, so fallback to artistId
         val token = artist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
         val numericId = artist.extras["artistId"]?.takeIf { it.isNotBlank() }
-        val response = api.getArtistDetails(token, numericId, songCount = 10, albumCount = 10, page = 1)
-        val jsonObject = json.parseToJsonElement(response).jsonObject
+        val response = api.artist.getDetails(token, numericId, songCount = 10, albumCount = 10, page = 1)
 
         // Parse and cache
-        val parsedArtist = parser.artist.parseArtistToArtist(jsonObject)
+        val parsedArtist = parser.artist.parseArtistToArtist(response)
             ?: throw Exception("Artist not found")
-        val topSongs = parser.artist.parseArtistTopSongs(jsonObject)
-        val topAlbums = parser.artist.parseArtistTopAlbums(jsonObject)
+        val topSongs = parser.artist.parseArtistTopSongs(response)
+        val topAlbums = parser.artist.parseArtistTopAlbums(response)
 
-        val singles = parser.artist.parseArtistSingles(jsonObject)
-        val dedicatedPlaylists = parser.artist.parseArtistDedicatedPlaylists(jsonObject)
-        val featuredPlaylists = parser.artist.parseArtistFeaturedPlaylists(jsonObject)
+        val singles = parser.artist.parseArtistSingles(response)
+        val dedicatedPlaylists = parser.artist.parseArtistDedicatedPlaylists(response)
+        val featuredPlaylists = parser.artist.parseArtistFeaturedPlaylists(response)
 
         cachedArtistId = artist.id
         cachedArtist = parsedArtist
@@ -145,17 +144,16 @@ class ArtistClientImpl(
                     try {
                         val token = artist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
                         val numericId = artist.extras["artistId"]?.takeIf { it.isNotBlank() }
-                        val response = api.getArtistDetails(
+                        val response = api.artist.getDetails(
                             token, numericId,
                             songCount = if (type == "songs") 10 else 0,
                             albumCount = if (type == "albums") 10 else 0,
                             page = page
                         )
-                        val jsonObject = json.parseToJsonElement(response).jsonObject
 
                         val items = when (type) {
-                            "songs" -> parser.artist.parseArtistTopSongs(jsonObject).map { it.toShelf() }
-                            "albums" -> parser.artist.parseArtistTopAlbums(jsonObject).map { it.toShelf() }
+                            "songs" -> parser.artist.parseArtistTopSongs(response).map { it.toShelf() }
+                            "albums" -> parser.artist.parseArtistTopAlbums(response).map { it.toShelf() }
                             else -> emptyList()
                         }
 

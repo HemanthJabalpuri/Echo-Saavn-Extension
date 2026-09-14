@@ -9,7 +9,6 @@ import dev.brahmkshatriya.echo.extension.utils.*
 
 class TrackParser : BaseParser() {
 
-    // ===== SINGLE PARSER (used everywhere) =====
     fun parseSongToTrack(obj: JsonObject): Track? {
         val id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return null
         val numericId = obj["id"]?.jsonPrimitive?.content ?: ""
@@ -63,37 +62,28 @@ class TrackParser : BaseParser() {
             subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
             extras = mapOf(
                 "songId" to numericId,
-                "language" to (obj["language"]?.jsonPrimitive?.content ?: ""),
-                "year" to (obj["year"]?.jsonPrimitive?.content ?: ""),
                 "permaUrl" to (obj["perma_url"]?.jsonPrimitive?.content ?: ""),
                 "hasLyrics" to (moreInfo?.get("has_lyrics")?.jsonPrimitive?.content ?: "false"),
-                "label" to (moreInfo?.get("label")?.jsonPrimitive?.content ?: ""),
-                "copyright" to (moreInfo?.get("copyright_text")?.jsonPrimitive?.content ?: "")
             ),
             streamables = streamables
         )
     }
 
-    // ===== LIST PARSERS =====
-    fun parseSongSearchResults(jsonString: String): List<Track> {
+    fun parseSongSearchResults(obj: JsonObject): List<Track> {
         return try {
-            val jsonObject = json.parseToJsonElement(jsonString).jsonObject
-            val results = jsonObject["results"]?.jsonArray ?: return emptyList()
+            val results = obj["results"]?.jsonArray ?: return emptyList()
             results.mapNotNull { parseSongToTrack(it.jsonObject) }
         } catch (e: Exception) {
             emptyList()
         }
     }
 
-    fun parseSongDetails(jsonString: String): List<Track> {
+    fun parseSongDetails(obj: JsonObject): List<Track> {
         return try {
-            val jsonObject = json.parseToJsonElement(jsonString).jsonObject
-            val songsArray = jsonObject["songs"]?.jsonArray ?: return emptyList()
+            val songsArray = obj["songs"]?.jsonArray ?: return emptyList()
             songsArray.mapNotNull { parseSongToTrack(it.jsonObject) }
         } catch (e: Exception) {
             emptyList()
         }
     }
-
-    fun parseSongFromJson(obj: JsonObject): Track? = parseSongToTrack(obj)
 }
