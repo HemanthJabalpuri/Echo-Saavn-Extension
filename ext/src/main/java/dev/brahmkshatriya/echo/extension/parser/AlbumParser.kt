@@ -1,6 +1,7 @@
 package dev.brahmkshatriya.echo.extension.parser
 
-import dev.brahmkshatriya.echo.common.models.*
+import dev.brahmkshatriya.echo.common.models.Album
+import dev.brahmkshatriya.echo.common.models.Track
 import dev.brahmkshatriya.echo.common.models.ImageHolder.Companion.toImageHolder
 
 import kotlinx.serialization.json.*

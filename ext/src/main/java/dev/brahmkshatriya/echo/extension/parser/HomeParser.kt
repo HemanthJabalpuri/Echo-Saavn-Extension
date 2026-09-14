@@ -1,6 +1,7 @@
 package dev.brahmkshatriya.echo.extension.parser
 
-import dev.brahmkshatriya.echo.common.models.*
+import dev.brahmkshatriya.echo.common.models.EchoMediaItem
+import dev.brahmkshatriya.echo.common.models.Shelf
 
 import kotlinx.serialization.json.*
 

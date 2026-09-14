@@ -1,9 +1,14 @@
 package dev.brahmkshatriya.echo.extension.parser
 
-import dev.brahmkshatriya.echo.common.models.*
+import dev.brahmkshatriya.echo.common.models.Track
+import dev.brahmkshatriya.echo.common.models.Artist
+import dev.brahmkshatriya.echo.common.models.Album
+import dev.brahmkshatriya.echo.common.models.Playlist
 import dev.brahmkshatriya.echo.common.models.ImageHolder.Companion.toImageHolder
-import dev.brahmkshatriya.echo.extension.utils.convertImageUrl
+
 import kotlinx.serialization.json.*
+
+import dev.brahmkshatriya.echo.extension.utils.convertImageUrl
 
 class ArtistParser(
     private val trackParser: TrackParser,

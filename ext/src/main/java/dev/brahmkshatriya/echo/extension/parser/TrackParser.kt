@@ -1,11 +1,15 @@
 package dev.brahmkshatriya.echo.extension.parser
 
-import dev.brahmkshatriya.echo.common.models.*
+import dev.brahmkshatriya.echo.common.models.Track
+import dev.brahmkshatriya.echo.common.models.Streamable
+import dev.brahmkshatriya.echo.common.models.Album
 import dev.brahmkshatriya.echo.common.models.ImageHolder.Companion.toImageHolder
 
 import kotlinx.serialization.json.*
 
-import dev.brahmkshatriya.echo.extension.utils.*
+import dev.brahmkshatriya.echo.extension.utils.convertImageUrl
+import dev.brahmkshatriya.echo.extension.utils.parseDate
+import dev.brahmkshatriya.echo.extension.utils.parseDuration
 
 class TrackParser : BaseParser() {
 

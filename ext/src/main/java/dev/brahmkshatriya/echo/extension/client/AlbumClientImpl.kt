@@ -1,19 +1,19 @@
 package dev.brahmkshatriya.echo.extension.client
 
 import dev.brahmkshatriya.echo.common.clients.AlbumClient
-import dev.brahmkshatriya.echo.common.models.*
+import dev.brahmkshatriya.echo.common.models.Track
+import dev.brahmkshatriya.echo.common.models.Feed
+import dev.brahmkshatriya.echo.common.models.Shelf
+import dev.brahmkshatriya.echo.common.models.Album
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeed
 
-import dev.brahmkshatriya.echo.extension.*
-
-import kotlinx.serialization.json.*
+import dev.brahmkshatriya.echo.extension.JioSaavnApi
+import dev.brahmkshatriya.echo.extension.JioSaavnParser
 
 class AlbumClientImpl(
     private val api: JioSaavnApi,
     private val parser: JioSaavnParser
 ) : AlbumClient {
-
-    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     // One-album cache
     private var cachedAlbumId: String? = null

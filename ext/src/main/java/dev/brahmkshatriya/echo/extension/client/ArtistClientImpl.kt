@@ -3,18 +3,21 @@ package dev.brahmkshatriya.echo.extension.client
 import dev.brahmkshatriya.echo.common.clients.ArtistClient
 import dev.brahmkshatriya.echo.common.helpers.Page
 import dev.brahmkshatriya.echo.common.helpers.PagedData
-import dev.brahmkshatriya.echo.common.models.*
+import dev.brahmkshatriya.echo.common.models.Track
+import dev.brahmkshatriya.echo.common.models.Feed
+import dev.brahmkshatriya.echo.common.models.Shelf
+import dev.brahmkshatriya.echo.common.models.Artist
+import dev.brahmkshatriya.echo.common.models.Album
+import dev.brahmkshatriya.echo.common.models.Playlist
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeed
+
 import dev.brahmkshatriya.echo.extension.JioSaavnApi
 import dev.brahmkshatriya.echo.extension.JioSaavnParser
-import kotlinx.serialization.json.*
 
 class ArtistClientImpl(
     private val api: JioSaavnApi,
     private val parser: JioSaavnParser
 ) : ArtistClient {
-
-    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     // Cache fields (populated by loadArtist)
     private var cachedArtistId: String? = null
