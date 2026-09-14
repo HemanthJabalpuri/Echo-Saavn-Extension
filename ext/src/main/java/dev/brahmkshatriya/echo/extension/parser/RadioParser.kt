@@ -4,6 +4,8 @@ import dev.brahmkshatriya.echo.common.models.Track
 
 import kotlinx.serialization.json.*
 
+import dev.brahmkshatriya.echo.extension.utils.Logger
+
 class RadioParser(
     private val trackParser: TrackParser
 ) : BaseParser() {
@@ -11,10 +13,10 @@ class RadioParser(
     fun parseStationId(obj: JsonObject): String? {
         return try {
             val stationId = obj["stationid"]?.jsonPrimitive?.content
-            println("DEBUG: Extracted station ID: $stationId")
+            Logger.d("RadioParser", "Extracted station ID: $stationId")
             stationId
         } catch (e: Exception) {
-            println("DEBUG: Failed to parse station ID: ${e.message}")
+            Logger.e("RadioParser", "Failed to parse station ID: ${e.message}", e)
             null
         }
     }
@@ -32,16 +34,15 @@ class RadioParser(
                             song?.let { songs.add(it) }
                         }
                     } catch (e: Exception) {
-                        println("DEBUG: Failed to parse song at key $key: ${e.message}")
+                        Logger.e("RadioParser", "Failed to parse song at key $key: ${e.message}", e)
                     }
                 }
             }
             
-            println("DEBUG: Successfully parsed ${songs.size} song suggestions from station")
+            Logger.d("RadioParser", "Successfully parsed ${songs.size} song suggestions from station")
             songs
         } catch (e: Exception) {
-            println("DEBUG: Failed to parse song suggestions: ${e.message}")
-            println("DEBUG: Stack trace: ${e.stackTraceToString()}")
+            Logger.e("RadioParser", "Failed to parse song suggestions: ${e.message}", e)
             emptyList()
         }
     }

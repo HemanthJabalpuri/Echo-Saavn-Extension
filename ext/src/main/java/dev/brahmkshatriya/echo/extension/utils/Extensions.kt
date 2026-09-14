@@ -26,7 +26,7 @@ fun decryptUrl(encryptedUrl: String): Map<String, String>? {
             "veryHigh" to decryptedUrl.replace("_96.mp4", "_320.mp4")
         )
     } catch (e: Exception) {
-        println("DEBUG: Failed to decrypt URL: ${e.message}")
+        Logger.e("decryptUrl","Failed to decrypt URL: ${e.message}", e)
         null
     }
 }

@@ -5,6 +5,8 @@ import dev.brahmkshatriya.echo.common.models.Shelf
 
 import kotlinx.serialization.json.*
 
+import dev.brahmkshatriya.echo.extension.utils.Logger
+
 class HomeParser(
     private val trackParser: TrackParser,
     private val albumParser: AlbumParser,
@@ -45,7 +47,7 @@ class HomeParser(
             
             shelves
         } catch (e: Exception) {
-            println("DEBUG: Failed to parse home feed: ${e.message}")
+            Logger.e("ArtistParser", "Failed to parse home feed: ${e.message}", e)
             emptyList()
         }
     }

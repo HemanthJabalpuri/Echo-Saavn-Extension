@@ -23,7 +23,8 @@ class TrackParser : BaseParser() {
         val artists = parseArtistsFromArtistMap(artistMap)
 
         // Album
-        val albumId = moreInfo?.get("album_url")?.jsonPrimitive?.content?.substringAfterLast("/")
+        val albumUrl = moreInfo?.get("album_url")?.jsonPrimitive?.content
+        val albumId = albumUrl?.substringAfterLast("/")
         val albumTitle = moreInfo?.get("album")?.jsonPrimitive?.content ?: ""
         val image = obj["image"]?.jsonPrimitive?.content ?: ""
         val album = albumId?.let {
@@ -32,7 +33,10 @@ class TrackParser : BaseParser() {
                 title = decodeHtml(albumTitle),
                 cover = convertImageUrl(image).toImageHolder(),
                 label = moreInfo?.get("label")?.jsonPrimitive?.content,
-                isExplicit = obj["explicit_content"]?.jsonPrimitive?.content == "1"
+                isExplicit = obj["explicit_content"]?.jsonPrimitive?.content == "1",
+                extras = mapOf(
+                    "permaUrl" to (albumUrl ?: "")
+                )
             )
         }
 

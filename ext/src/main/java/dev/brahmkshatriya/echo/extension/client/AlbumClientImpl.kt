@@ -15,38 +15,30 @@ class AlbumClientImpl(
     private val parser: JioSaavnParser
 ) : AlbumClient {
 
-    // One-album cache
     private var cachedAlbumId: String? = null
-    private var cachedAlbum: Album? = null
     private var cachedTracks: List<Track>? = null
 
+    // ===== LOAD ALBUM =====
+    // No API call - return as-is
     override suspend fun loadAlbum(album: Album): Album {
-        // Cache hit
-        if (cachedAlbumId == album.id && cachedAlbum != null) {
-            return cachedAlbum!!
-        }
-
-        // Cache miss - fetch, parse, cache
-        val response = api.album.getDetails(album.id)
-        val parsedAlbum = parser.album.parseAlbumToAlbum(response)
-            ?: throw Exception("Album not found")
-        val tracks = parser.album.parseAlbumTracks(response)
-
-        cachedAlbumId = album.id
-        cachedAlbum = parsedAlbum
-        cachedTracks = tracks
-
-        return parsedAlbum
+        return album
     }
 
+    // ===== LOAD TRACKS =====
     override suspend fun loadTracks(album: Album): Feed<Track>? {
         // Cache hit
         if (cachedAlbumId == album.id && cachedTracks != null) {
             return cachedTracks!!.toFeed() as Feed<Track>
         }
 
-        // Cache miss - unexpected flow, return empty
-        return emptyList<Track>().toFeed() as Feed<Track>
+        // Fetch and parse
+        val response = api.album.getDetails(album.id)
+        val tracks = parser.album.parseAlbumTracks(response)
+
+        cachedAlbumId = album.id
+        cachedTracks = tracks
+
+        return tracks.toFeed() as Feed<Track>
     }
 
     override suspend fun loadFeed(album: Album): Feed<Shelf>? = null

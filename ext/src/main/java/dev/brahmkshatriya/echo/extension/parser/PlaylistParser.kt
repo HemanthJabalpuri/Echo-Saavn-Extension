@@ -7,6 +7,7 @@ import dev.brahmkshatriya.echo.common.models.ImageHolder.Companion.toImageHolder
 import kotlinx.serialization.json.*
 
 import dev.brahmkshatriya.echo.extension.utils.convertImageUrl
+import dev.brahmkshatriya.echo.extension.utils.Logger
 
 class PlaylistParser(
     private val trackParser: TrackParser
@@ -47,7 +48,7 @@ class PlaylistParser(
         return try {
             parsePlaylistToPlaylist(obj)
         } catch (e: Exception) {
-            println("DEBUG: Failed to parse playlist details: ${e.message}")
+            Logger.e("PlaylistParser", "Failed to parse playlist details: ${e.message}", e)
             null
         }
     }

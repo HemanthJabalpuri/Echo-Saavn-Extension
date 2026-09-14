@@ -8,8 +8,10 @@ import dev.brahmkshatriya.echo.common.models.Feed
 import dev.brahmkshatriya.echo.common.models.Shelf
 import dev.brahmkshatriya.echo.common.models.Artist
 import dev.brahmkshatriya.echo.common.models.Album
-import dev.brahmkshatriya.echo.common.models.Playlist
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeed
+import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeedData
+
+import kotlinx.serialization.json.JsonObject
 
 import dev.brahmkshatriya.echo.extension.JioSaavnApi
 import dev.brahmkshatriya.echo.extension.JioSaavnParser
@@ -19,62 +21,45 @@ class ArtistClientImpl(
     private val parser: JioSaavnParser
 ) : ArtistClient {
 
-    // Cache fields (populated by loadArtist)
     private var cachedArtistId: String? = null
-    private var cachedArtist: Artist? = null
-    private var cachedTopSongs: List<Track>? = null
-    private var cachedTopAlbums: List<Album>? = null
-    private var cachedSingles: List<Album>? = null
-    private var cachedDedicatedPlaylists: List<Playlist>? = null
-    private var cachedFeaturedPlaylists: List<Playlist>? = null
+    private var cachedFeed: Feed<Shelf>? = null
 
+    // ===== LOAD ARTIST =====
+    // No API call - return as-is
     override suspend fun loadArtist(artist: Artist): Artist {
+        return artist
+    }
+
+    // ===== LOAD FEED =====
+    override suspend fun loadFeed(artist: Artist): Feed<Shelf> {
         // Cache hit
-        if (cachedArtistId == artist.id && cachedArtist != null) {
-            return cachedArtist!!
+        if (cachedArtistId == artist.id && cachedFeed != null) {
+            return cachedFeed!!
         }
 
-        // Fetch 10/10
-        // Artist details in Song suggestions don't have perma_url, so fallback to artistId
+        // Fetch 50/50
         val token = artist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
         val numericId = artist.extras["artistId"]?.takeIf { it.isNotBlank() }
-        val response = api.artist.getDetails(token, numericId, songCount = 10, albumCount = 10, page = 1)
+        val response = api.artist.getDetails(
+            token = token,
+            artistId = numericId,
+            songCount = 50,
+            albumCount = 50,
+            page = 1
+        )
 
-        // Parse and cache
-        val parsedArtist = parser.artist.parseArtistToArtist(response)
-            ?: throw Exception("Artist not found")
-        val topSongs = parser.artist.parseArtistTopSongs(response)
-        val topAlbums = parser.artist.parseArtistTopAlbums(response)
-
-        val singles = parser.artist.parseArtistSingles(response)
-        val dedicatedPlaylists = parser.artist.parseArtistDedicatedPlaylists(response)
-        val featuredPlaylists = parser.artist.parseArtistFeaturedPlaylists(response)
-
+        val feed = buildFeed(artist, response)
         cachedArtistId = artist.id
-        cachedArtist = parsedArtist
-        cachedTopSongs = topSongs
-        cachedTopAlbums = topAlbums
-        cachedSingles = singles
-        cachedDedicatedPlaylists = dedicatedPlaylists
-        cachedFeaturedPlaylists = featuredPlaylists
-
-        return parsedArtist
+        cachedFeed = feed
+        return feed
     }
 
-    override suspend fun loadFeed(artist: Artist): Feed<Shelf> {
-        // Cache hit - build shelves from cached data
-        if (cachedArtistId == artist.id && cachedTopSongs != null) {
-            return buildFeed(artist)
-        }
-
-        // Cache miss - unexpected flow, return empty
-        return emptyList<Shelf>().toFeed()
-    }
-
-    private fun buildFeed(artist: Artist): Feed<Shelf> {
+    // ===== BUILD FEED =====
+    private fun buildFeed(artist: Artist, response: JsonObject): Feed<Shelf> {
         val shelves = mutableListOf<Shelf>()
 
-        val topSongs = cachedTopSongs ?: emptyList()
+        // Top Songs
+        val topSongs = parser.artist.parseArtistTopSongs(response)
         if (topSongs.isNotEmpty()) {
             shelves.add(
                 Shelf.Lists.Items(
@@ -87,7 +72,8 @@ class ArtistClientImpl(
             )
         }
 
-        val topAlbums = cachedTopAlbums ?: emptyList()
+        // Top Albums
+        val topAlbums = parser.artist.parseArtistTopAlbums(response)
         if (topAlbums.isNotEmpty()) {
             shelves.add(
                 Shelf.Lists.Items(
@@ -100,7 +86,8 @@ class ArtistClientImpl(
             )
         }
 
-        val singles = cachedSingles ?: emptyList()
+        // Singles
+        val singles = parser.artist.parseArtistSingles(response)
         if (singles.isNotEmpty()) {
             shelves.add(
                 Shelf.Lists.Items(
@@ -112,7 +99,8 @@ class ArtistClientImpl(
             )
         }
 
-        val dedicatedPlaylists = cachedDedicatedPlaylists ?: emptyList()
+        // Dedicated Playlists
+        val dedicatedPlaylists = parser.artist.parseArtistDedicatedPlaylists(response)
         if (dedicatedPlaylists.isNotEmpty()) {
             shelves.add(
                 Shelf.Lists.Items(
@@ -124,7 +112,8 @@ class ArtistClientImpl(
             )
         }
 
-        val featuredPlaylists = cachedFeaturedPlaylists ?: emptyList()
+        // Featured Playlists
+        val featuredPlaylists = parser.artist.parseArtistFeaturedPlaylists(response)
         if (featuredPlaylists.isNotEmpty()) {
             shelves.add(
                 Shelf.Lists.Items(
@@ -139,6 +128,7 @@ class ArtistClientImpl(
         return shelves.toFeed()
     }
 
+    // ===== MORE FEED =====
     private fun createMoreFeed(artist: Artist, type: String): Feed<Shelf> {
         return Feed(emptyList()) { _ ->
             Feed.Data(
@@ -148,9 +138,10 @@ class ArtistClientImpl(
                         val token = artist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
                         val numericId = artist.extras["artistId"]?.takeIf { it.isNotBlank() }
                         val response = api.artist.getDetails(
-                            token, numericId,
-                            songCount = if (type == "songs") 10 else 0,
-                            albumCount = if (type == "albums") 10 else 0,
+                            token = token,
+                            artistId = numericId,
+                            songCount = if (type == "songs") 50 else 0,
+                            albumCount = if (type == "albums") 50 else 0,
                             page = page
                         )
 
@@ -164,7 +155,7 @@ class ArtistClientImpl(
                             return@Continuous Page(emptyList(), null)
                         }
 
-                        val nextContinuation = if (items.size >= 10) (page + 1).toString() else null
+                        val nextContinuation = if (items.size >= 50) (page + 1).toString() else null
                         Page(items, nextContinuation)
                     } catch (e: Exception) {
                         Page(emptyList(), null)

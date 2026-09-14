@@ -8,6 +8,7 @@ import kotlinx.serialization.json.*
 
 import dev.brahmkshatriya.echo.extension.utils.convertImageUrl
 import dev.brahmkshatriya.echo.extension.utils.parseDate
+import dev.brahmkshatriya.echo.extension.utils.Logger
 
 class AlbumParser(
     private val trackParser: TrackParser
@@ -53,7 +54,7 @@ class AlbumParser(
         return try {
             parseAlbumToAlbum(obj)
         } catch (e: Exception) {
-            println("DEBUG: Failed to parse album details: ${e.message}")
+            Logger.e("AlbumParser", "Failed to parse album details: ${e.message}", e)
             null
         }
     }

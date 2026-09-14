@@ -7,6 +7,8 @@ import okhttp3.Request
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
+import dev.brahmkshatriya.echo.extension.utils.Logger
+
 open class BaseApi {
 
     protected open val defaultCtx: String = "web6dot0"
@@ -47,7 +49,7 @@ open class BaseApi {
         }
         val url = "$BASE_URL?__call=$call&$queryString"
 
-        println("DEBUG: Request URL: $url")
+        Logger.d("API", "Request URL: $url")
 
         val builder = Request.Builder().url(url).get()
         headers.forEach { (key, value) -> builder.header(key, value) }
