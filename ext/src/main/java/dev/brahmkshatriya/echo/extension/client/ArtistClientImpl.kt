@@ -16,6 +16,7 @@ import kotlinx.serialization.json.JsonObject
 
 import dev.brahmkshatriya.echo.extension.JioSaavnApi
 import dev.brahmkshatriya.echo.extension.JioSaavnParser
+import dev.brahmkshatriya.echo.extension.utils.Logger
 
 class ArtistClientImpl(
     private val api: JioSaavnApi,
@@ -38,20 +39,55 @@ class ArtistClientImpl(
             return cachedFeed!!
         }
 
-        // Fetch 50/50
-        val token = artist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
+        // Try to get token from extras
+        var resolvedArtist = artist
+        var token = artist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
+
+        // If token missing, search by name and match by artist.id
+        // In song suggestions, perma_url is empty, that's why
+        if (token.isNullOrBlank()) {
+            Logger.d("ArtistClient", "Token missing for ${artist.name} (id=${artist.id}), searching by name")
+            val matchedArtist = findArtistByName(artist.name, artist.id)
+
+            if (matchedArtist == null) {
+                Logger.e("ArtistClient", "Could not find artist: ${artist.name} (id=${artist.id})")
+                return emptyList<Shelf>().toFeed()
+            }
+
+            // Use the matched artist (has permaUrl in extras)
+            resolvedArtist = matchedArtist
+            // Get token from permaUrl
+            token = resolvedArtist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
+                ?: run {
+                    Logger.e("ArtistClient", "No token in permaUrl for: ${resolvedArtist.name}")
+                    return emptyList<Shelf>().toFeed()
+                }
+
+            Logger.d("ArtistClient", "Resolved artist: ${matchedArtist.name} (token=$token)")
+        }
+
+        // Fetch details using token
         val response = api.artist.getDetails(
             token = token,
-            artistId = artist.id,
-            songCount = 50,
-            albumCount = 50,
-            page = 1
         )
 
-        val feed = buildFeed(artist, response)
-        cachedArtistId = artist.id
+        val feed = buildFeed(resolvedArtist, response)
+        cachedArtistId = artist.id  // Cache by original ID
         cachedFeed = feed
         return feed
+    }
+
+    private suspend fun findArtistByName(name: String, numericId: String): Artist? {
+        return try {
+            val response = api.artist.search(name, page = 1, limit = 10)
+            val artists = parser.artist.parseArtistSearchResults(response)
+
+            // Match by numeric ID (either in id or extras)
+            artists.firstOrNull { it.id == numericId }
+        } catch (e: Exception) {
+            Logger.e("ArtistClient", "Search failed for $name", e)
+            null
+        }
     }
 
     private fun buildFeed(artist: Artist, response: JsonObject): Feed<Shelf> {
@@ -141,13 +177,9 @@ class ArtistClientImpl(
             try {
                 val token = artist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
                 val response = api.artist.getDetails(
-                    token = token,
-                    artistId = artist.id,
-                    songCount = 50,
-                    albumCount = 50,
+                    token = token!!,
                     page = page,
                     subType = type,
-                    more = true
                 )
 
                 val items = when (type) {
