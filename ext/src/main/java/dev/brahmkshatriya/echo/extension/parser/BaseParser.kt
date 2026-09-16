@@ -32,11 +32,9 @@ open class BaseParser {
         val numericId = obj["id"]?.jsonPrimitive?.content
             ?: obj["artistId"]?.jsonPrimitive?.content
             ?: ""
-        val id = if (permaUrl.isNotBlank()) permaUrl.substringAfterLast("/") else numericId
-        if (id.isBlank()) return null
 
         return Artist(
-            id = id,
+            id = numericId,
             name = decodeHtml(
                 obj["name"]?.jsonPrimitive?.content
                     ?: obj["title"]?.jsonPrimitive?.content
@@ -47,7 +45,6 @@ open class BaseParser {
                 ?: obj["role"]?.jsonPrimitive?.content,
             extras = mapOf(
                 "permaUrl" to permaUrl,
-                "artistId" to numericId
             )
         )
     }

@@ -22,10 +22,12 @@ class ArtistApi : BaseApi() {
         artistId: String?,
         songCount: Int = DEFAULT_SONG_COUNT,
         albumCount: Int = DEFAULT_ALBUM_COUNT,
-        page: Int = 1
+        page: Int = 1,
+        subType: String = "",
+        more: Boolean = false
     ): JsonObject = when {
-        !artistId.isNullOrBlank() -> getDetailsById(artistId, songCount, albumCount, page)
-        !token.isNullOrBlank() -> getDetailsByToken(token, songCount, albumCount, page)
+        !token.isNullOrBlank() -> getDetailsByToken(token, songCount, albumCount, page, subType, more)
+        !artistId.isNullOrBlank() -> getDetailsById(artistId, songCount, albumCount, page, subType, more)
         else -> throw Exception("Either token or artistId must be provided")
     }
 
@@ -33,36 +35,42 @@ class ArtistApi : BaseApi() {
         artistId: String,
         songCount: Int,
         albumCount: Int,
-        page: Int
+        page: Int,
+        subType: String,
+        more: Boolean
     ): JsonObject = executeRequest(
         call = "artist.getArtistPageDetails",
-        params = mapOf(
-            "artistId" to artistId,
-            "n_song" to songCount.toString(),
-            "n_album" to albumCount.toString(),
-            "page" to (page - 1).toString(),
-            "sub_type" to "",
-            "category" to "popularity",
-            "sort_order" to "asc"
-        )
+        params = buildMap {
+            put("artistId", artistId)
+            put("n_song", songCount.toString())
+            put("n_album", albumCount.toString())
+            put("page", (page - 1).toString())
+            put("sub_type", subType)
+            if (more) put("more", "true")
+            put("category", "popularity")
+            put("sort_order", "asc")
+        }
     )
 
     private suspend fun getDetailsByToken(
         token: String,
         songCount: Int,
         albumCount: Int,
-        page: Int
+        page: Int,
+        subType: String,
+        more: Boolean
     ): JsonObject = executeRequest(
         call = "webapi.get",
-        params = mapOf(
-            "type" to "artist",
-            "token" to token,
-            "n_song" to songCount.toString(),
-            "n_album" to albumCount.toString(),
-            "p" to (page - 1).toString(),
-            "sub_type" to "",
-            "category" to "popularity",
-            "sort_order" to "asc"
-        )
+        params = buildMap {
+            put("type", "artist")
+            put("token", token)
+            put("n_song", songCount.toString())
+            put("n_album", albumCount.toString())
+            put("p", (page - 1).toString())
+            put("sub_type", subType)
+            if (more) put("more", "true")
+            put("category", "popularity")
+            put("sort_order", "asc")
+        }
     )
 }
