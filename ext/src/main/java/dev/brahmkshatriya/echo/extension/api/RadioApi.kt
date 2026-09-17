@@ -1,23 +1,19 @@
 package dev.brahmkshatriya.echo.extension.api
 
 import kotlinx.serialization.json.JsonObject
-import java.net.URLEncoder
 
 class RadioApi : BaseApi() {
 
     override val defaultCtx: String = "android"
 
-    suspend fun createSongStation(songId: String): JsonObject {
-        val encodedSongId = URLEncoder.encode(songId, "UTF-8")
-        val entityId = "[\"$encodedSongId\"]"
-        return executeRequest(
+    suspend fun createSongStation(songId: String): JsonObject =
+        executeRequest(
             call = "webradio.createEntityStation",
             params = mapOf(
-                "entity_id" to entityId,
+                "entity_id" to "[\"$songId\"]",
                 "entity_type" to "queue"
             )
         )
-    }
 
     suspend fun getSongSuggestions(stationId: String, limit: Int = DEFAULT_SEARCH_LIMIT): JsonObject =
         executeRequest(
@@ -28,5 +24,4 @@ class RadioApi : BaseApi() {
                 "next" to "1"
             )
         )
-
 }

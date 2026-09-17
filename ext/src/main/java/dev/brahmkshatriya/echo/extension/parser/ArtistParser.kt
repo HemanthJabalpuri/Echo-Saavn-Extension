@@ -66,4 +66,19 @@ class ArtistParser(
             null
         }
     }
+
+    // ===== MORE SONGS (from artist.getArtistMoreSong) =====
+    fun parseArtistMoreSongs(obj: JsonObject): List<Track> {
+        return obj["topSongs"]?.jsonObject?.get("songs")?.jsonArray?.mapNotNull {
+            trackParser.parseSongToTrack(it.jsonObject)
+        } ?: emptyList()
+    }
+
+    // ===== MORE ALBUMS (from artist.getArtistMoreAlbum) =====
+    fun parseArtistMoreAlbums(obj: JsonObject): List<Album> {
+        return obj["topAlbums"]?.jsonObject?.get("albums")?.jsonArray?.mapNotNull {
+            albumParser.parseAlbumToAlbum(it.jsonObject)
+        } ?: emptyList()
+    }
+
 }

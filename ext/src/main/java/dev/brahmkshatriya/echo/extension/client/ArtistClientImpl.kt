@@ -6,6 +6,7 @@ import dev.brahmkshatriya.echo.common.helpers.PagedData
 import dev.brahmkshatriya.echo.common.models.Track
 import dev.brahmkshatriya.echo.common.models.Feed
 import dev.brahmkshatriya.echo.common.models.Shelf
+import dev.brahmkshatriya.echo.common.models.Tab
 import dev.brahmkshatriya.echo.common.models.Artist
 import dev.brahmkshatriya.echo.common.models.EchoMediaItem
 import dev.brahmkshatriya.echo.common.models.Album
@@ -17,6 +18,7 @@ import kotlinx.serialization.json.JsonObject
 import dev.brahmkshatriya.echo.extension.JioSaavnApi
 import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.utils.Logger
+import dev.brahmkshatriya.echo.extension.api.ArtistApi.ArtistCategory
 
 class ArtistClientImpl(
     private val api: JioSaavnApi,
@@ -102,7 +104,7 @@ class ArtistClientImpl(
                     title = "Top Songs",
                     list = topSongs,
                     subtitle = "${topSongs.size} songs",
-                    more = createMoreFeed(artist, "songs", topSongs)
+                    more = createMoreFeed(artist, "songs")
                 )
             )
         }
@@ -116,7 +118,7 @@ class ArtistClientImpl(
                     title = "Top Albums",
                     list = topAlbums,
                     subtitle = "${topAlbums.size} albums",
-                    more = createMoreFeed(artist, "albums", topAlbums)
+                    more = createMoreFeed(artist, "albums")
                 )
             )
         }
@@ -163,49 +165,68 @@ class ArtistClientImpl(
         return shelves.toFeed()
     }
 
-    // ===== MORE FEED =====
     private fun createMoreFeed(
         artist: Artist,
-        type: String,
-        firstPage: List<EchoMediaItem>
+        type: String
     ): Feed<Shelf> {
-        // Convert to Shelf for consistency
-        val firstPageShelves = firstPage.map { Shelf.Item(it) }
+        val tabs = listOf(
+            Tab("popular", "Popular"),
+            Tab("latest", "Latest")
+        )
 
-        val morePages = PagedData.Continuous<Shelf> { continuation ->
-            val page = continuation?.toIntOrNull() ?: 2
+        return Feed(tabs) { tab ->
+            val category = when (tab?.id) {
+                "latest" -> ArtistCategory.LATEST
+                else -> ArtistCategory.POPULAR
+            }
+
+            val pagedData = buildMorePages(artist, type, category)
+            pagedData.toFeedData()
+        }
+    }
+
+    private fun buildMorePages(
+        artist: Artist,
+        type: String,
+        category: ArtistCategory
+    ): PagedData<Shelf> {
+        Logger.d("ArtistClient", "buildMorePages: type=$type, category=$category, artist.id=${artist.id}")
+
+        return PagedData.Continuous { continuation ->
+            val page = continuation?.toIntOrNull() ?: 1
+            Logger.d("ArtistClient", "buildMorePages.Continuous: page=$page, type=$type")
+
             try {
-                val token = artist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
-                val response = api.artist.getDetails(
-                    token = token!!,
-                    page = page,
-                    subType = type,
-                )
+                val response = when (type) {
+                    "songs" -> api.artist.getMoreSongs(artist.id, page, category)
+                    "albums" -> api.artist.getMoreAlbums(artist.id, page, category)
+                    else -> {
+                        Logger.e("ArtistClient", "buildMorePages: unknown type=$type")
+                        return@Continuous Page(emptyList(), null)
+                    }
+                }
 
                 val items = when (type) {
-                    "songs" -> parser.artist.parseArtistTopSongs(response).map { it.toShelf() }
-                    "albums" -> parser.artist.parseArtistTopAlbums(response).map { it.toShelf() }
+                    "songs" -> parser.artist.parseArtistMoreSongs(response).map { it.toShelf() }
+                    "albums" -> parser.artist.parseArtistMoreAlbums(response).map { it.toShelf() }
                     else -> emptyList()
                 }
+
+                Logger.d("ArtistClient", "buildMorePages: parsed ${items.size} items")
 
                 if (items.isEmpty()) {
                     return@Continuous Page(emptyList(), null)
                 }
 
-                val nextContinuation = if (items.size >= 50) (page + 1).toString() else null
+                // 10 items per page
+                val nextContinuation = if (items.size > 0) (page + 1).toString() else null
+                Logger.d("ArtistClient", "buildMorePages: nextContinuation=$nextContinuation")
                 Page(items, nextContinuation)
             } catch (e: Exception) {
+                Logger.e("ArtistClient", "buildMorePages: exception", e)
                 Page(emptyList(), null)
             }
         }
-
-        val combined = PagedData.Concat<Shelf>(
-            PagedData.Single { firstPageShelves },
-            morePages
-        )
-
-        return Feed(emptyList()) { _ ->
-            Feed.Data(combined)
-        }
     }
+
 }

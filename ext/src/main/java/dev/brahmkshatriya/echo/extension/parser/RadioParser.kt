@@ -39,7 +39,7 @@ class RadioParser(
                 }
             }
             
-            Logger.d("RadioParser", "Successfully parsed ${songs.size} song suggestions from station")
+            Logger.d("RadioParser", "Successfully parsed ${songs.size} song suggestions from song station")
             songs
         } catch (e: Exception) {
             Logger.e("RadioParser", "Failed to parse song suggestions: ${e.message}", e)
