@@ -89,26 +89,45 @@ class TrackClientImpl(
 
     override suspend fun loadFeed(track: Track): Feed<Shelf> {
         return try {
+            val shelves = mutableListOf<Shelf>()
+
+            // ===== OTHER ARTISTS SHELF =====
+            val otherArtists = parser.artist.parseOtherArtistsFromExtras(
+                track.extras["otherArtistsJson"]
+            )
+            if (otherArtists.isNotEmpty()) {
+                shelves.add(
+                    Shelf.Lists.Items(
+                        id = "other_artists",
+                        title = "Other Artists",
+                        list = otherArtists,
+                        subtitle = "${otherArtists.size} artists"
+                    )
+                )
+            }
+
+            // ===== SIMILAR TRACKS SHELF =====
             val songId = track.extras["songId"] ?: track.id
             val response = api.radio.createSongStation(songId)
             val stationId = parser.radio.parseStationId(response)
-            
+
             if (stationId != null) {
                 val suggestionsResponse = api.radio.getSongSuggestions(stationId, limit = 20)
                 val songs = parser.radio.parseSongSuggestions(suggestionsResponse)
-                
+
                 if (songs.isNotEmpty()) {
-                    return listOf(
-                        Shelf.Lists.Tracks(
+                    shelves.add(
+                        Shelf.Lists.Items(
                             id = "similar_tracks",
                             title = "Similar Tracks",
                             list = songs,
                             subtitle = "You might also like"
                         )
-                    ).toFeed()
+                    )
                 }
             }
-            emptyList<Shelf>().toFeed()
+
+            shelves.toFeed()
         } catch (e: Exception) {
             emptyList<Shelf>().toFeed()
         }

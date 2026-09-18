@@ -19,7 +19,7 @@ class AlbumParser(
         val moreInfo = obj["more_info"]?.jsonObject
         val artistMap = moreInfo?.get("artistMap")?.jsonObject
 
-        val artists = parseArtistsFromArtistMap(artistMap)
+        val artists = parsePrimaryArtists(artistMap)
 
         val image = obj["image"]?.jsonPrimitive?.content ?: ""
         val songCount = moreInfo?.get("song_count")?.jsonPrimitive?.content ?: "0"
@@ -35,6 +35,7 @@ class AlbumParser(
             subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
             extras = mapOf(
                 "permaUrl" to (obj["perma_url"]?.jsonPrimitive?.content ?: ""),
+                "artistMapJson" to (artistMap?.toString() ?: "{}")
             )
         )
     }

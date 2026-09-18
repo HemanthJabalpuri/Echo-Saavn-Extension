@@ -20,7 +20,7 @@ class TrackParser : BaseParser() {
         val artistMap = moreInfo?.get("artistMap")?.jsonObject
 
         // Artists
-        val artists = parseArtistsFromArtistMap(artistMap)
+        val artists = parsePrimaryArtists(artistMap)
 
         // Album
         val albumUrl = moreInfo?.get("album_url")?.jsonPrimitive?.content
@@ -71,6 +71,7 @@ class TrackParser : BaseParser() {
             extras = mapOf(
                 "songId" to numericId,
                 "permaUrl" to (obj["perma_url"]?.jsonPrimitive?.content ?: ""),
+                "otherArtistsJson" to (artistMap?.toString() ?: "{}"),
                 "hasLyrics" to (moreInfo?.get("has_lyrics")?.jsonPrimitive?.content ?: "false"),
             ),
             streamables = streamables

@@ -49,7 +49,17 @@ open class BaseParser {
         )
     }
 
-    protected fun parseArtistsFromArtistMap(artistMap: JsonObject?): List<Artist> {
+    fun parseAllArtistsFromExtras(artistMapJson: String?): List<Artist> {
+        if (artistMapJson.isNullOrBlank()) return emptyList()
+        return try {
+            val artistMap = json.parseToJsonElement(artistMapJson).jsonObject
+            parseAllArtists(artistMap)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun parseAllArtists(artistMap: JsonObject?): List<Artist> {
         if (artistMap == null) return emptyList()
 
         val primary = artistMap["primary_artists"]?.jsonArray ?: emptyList()
@@ -59,6 +69,37 @@ open class BaseParser {
         return (primary + featured + all)
             .distinctBy { it.jsonObject["id"]?.jsonPrimitive?.content }
             .mapNotNull { parseArtistFromJson(it.jsonObject) }
+    }
+
+    protected fun parsePrimaryArtists(artistMap: JsonObject?): List<Artist> {
+        val primary = artistMap?.get("primary_artists")?.jsonArray ?: return emptyList()
+        return primary.mapNotNull { parseArtistFromJson(it.jsonObject) }
+    }
+
+    fun parseOtherArtists(artistMap: JsonObject?): List<Artist> {
+        if (artistMap == null) return emptyList()
+        
+        val primaryIds = artistMap["primary_artists"]?.jsonArray
+            ?.mapNotNull { it.jsonObject["id"]?.jsonPrimitive?.content }
+            ?.toSet()
+            ?: emptySet()
+        
+        val all = artistMap["artists"]?.jsonArray ?: return emptyList()
+        
+        return all
+            .filterNot { it.jsonObject["id"]?.jsonPrimitive?.content in primaryIds }
+            .mapNotNull { parseArtistFromJson(it.jsonObject) }
+    }
+
+    // Reconstruct "other artists" from extras
+    fun parseOtherArtistsFromExtras(artistMapJson: String?): List<Artist> {
+        if (artistMapJson.isNullOrBlank()) return emptyList()
+        return try {
+            val artistMap = json.parseToJsonElement(artistMapJson).jsonObject
+            parseOtherArtists(artistMap)
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
 }
