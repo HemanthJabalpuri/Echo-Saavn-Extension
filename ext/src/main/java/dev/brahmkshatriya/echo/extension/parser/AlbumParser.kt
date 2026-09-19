@@ -59,4 +59,14 @@ class AlbumParser(
             null
         }
     }
+
+    fun parseTopAlbumsOfYear(response: JsonObject): List<Album> {
+        val results = response["results"]?.jsonArray ?: return emptyList()
+        return results.mapNotNull { parseAlbumToAlbum(it.jsonObject) }
+    }
+
+    fun parseAlbumReco(response: JsonObject): List<Album> {
+        val results = response["results"]?.jsonArray ?: return emptyList()
+        return results.mapNotNull { parseAlbumToAlbum(it.jsonObject) }
+    }
 }

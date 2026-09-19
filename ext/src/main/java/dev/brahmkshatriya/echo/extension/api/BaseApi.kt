@@ -59,7 +59,14 @@ open class BaseApi {
             throw Exception("HTTP ${response.code}: ${response.message}")
         }
         val body = response.body?.string() ?: throw Exception("Empty response body")
-        return json.parseToJsonElement(body).jsonObject
+        val element = json.parseToJsonElement(body)
+
+        // Wrap arrays in an object
+        return when (element) {
+            is JsonObject -> element
+            is JsonArray -> buildJsonObject { put("results", element) }
+            else -> throw Exception("Unexpected JSON type: ${element::class.simpleName}")
+        }
     }
 
     companion object {

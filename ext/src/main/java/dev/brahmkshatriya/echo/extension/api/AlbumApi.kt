@@ -24,4 +24,20 @@ class AlbumApi : BaseApi() {
             "token" to albumId
         )
     )
+
+    suspend fun getTopAlbumsOfYear(year: String, language: String): JsonObject = executeRequest(
+        call = "search.topAlbumsoftheYear",
+        params = mapOf(
+            "album_year" to year,
+            "album_lang" to language
+        )
+    )
+
+    suspend fun getAlbumReco(albumId: String): JsonObject = executeRequest(
+        call = "reco.getAlbumReco",
+        params = mapOf(
+            "albumid" to albumId
+        )
+    )
+
 }
