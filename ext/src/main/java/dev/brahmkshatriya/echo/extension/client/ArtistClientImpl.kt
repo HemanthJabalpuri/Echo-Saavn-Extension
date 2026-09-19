@@ -159,6 +159,19 @@ class ArtistClientImpl(
             )
         }
 
+        // ===== SIMILAR ARTISTS =====
+        val similarArtists = parser.artist.parseArtistSimilarArtists(response)
+        if (similarArtists.isNotEmpty()) {
+            shelves.add(
+                Shelf.Lists.Items(
+                    id = "similar_artists",
+                    title = "Similar Artists",
+                    list = similarArtists,
+                    subtitle = "${similarArtists.size} artists"
+                )
+            )
+        }
+
         return shelves.toFeed()
     }
 

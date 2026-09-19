@@ -51,6 +51,11 @@ class ArtistParser(
         } ?: emptyList()
     }
 
+    fun parseArtistSimilarArtists(obj: JsonObject): List<Artist> {
+        val similar = obj["similarArtists"]?.jsonArray ?: return emptyList()
+        return similar.mapNotNull { parseArtistFromJson(it.jsonObject) }
+    }
+
     // ===== SEARCH RESULTS =====
     fun parseArtistSearchResults(obj: JsonObject): List<Artist> {
         val results = obj["results"]?.jsonArray ?: return emptyList()

@@ -40,7 +40,10 @@ open class BaseParser {
                     ?: obj["title"]?.jsonPrimitive?.content
                     ?: ""
             ),
-            cover = convertImageUrl(obj["image"]?.jsonPrimitive?.content).toImageHolder(),
+            cover = convertImageUrl(
+                obj["image"]?.jsonPrimitive?.content 
+                    ?: obj["image_url"]?.jsonPrimitive?.content
+            ).toImageHolder(),
             subtitle = obj["subtitle"]?.jsonPrimitive?.content
                 ?: obj["role"]?.jsonPrimitive?.content,
             extras = mapOf(
