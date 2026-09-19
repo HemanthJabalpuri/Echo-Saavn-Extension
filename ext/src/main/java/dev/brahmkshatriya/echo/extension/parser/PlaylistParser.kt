@@ -59,6 +59,11 @@ class PlaylistParser(
         return results.mapNotNull { parsePlaylistToPlaylist(it.jsonObject) }
     }
 
+    fun parseTrendingPlaylists(response: JsonObject): List<Playlist> {
+        val array = response["results"]?.jsonArray ?: return emptyList()
+        return array.mapNotNull { parsePlaylistToPlaylist(it.jsonObject) }
+    }
+
     fun parsePlaylistArtists(response: JsonObject): List<Artist> {
         val artists = response["more_info"]?.jsonObject
             ?.get("artists")?.jsonArray

@@ -23,4 +23,12 @@ class HomeApi : BaseApi() {
         )
     )
 
+    suspend fun getTrending(entityType: String, language: String): JsonObject = executeRequest(
+        call = "content.getTrending",
+        params = mapOf(
+            "entity_type" to entityType,
+            "entity_language" to language
+        )
+    )
+
 }

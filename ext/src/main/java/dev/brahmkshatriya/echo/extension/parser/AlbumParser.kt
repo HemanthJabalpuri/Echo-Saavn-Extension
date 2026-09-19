@@ -60,6 +60,11 @@ class AlbumParser(
         }
     }
 
+    fun parseTrendingAlbums(response: JsonObject): List<Album> {
+        val array = response["results"]?.jsonArray ?: return emptyList()
+        return array.mapNotNull { parseAlbumToAlbum(it.jsonObject) }
+    }
+
     fun parseTopAlbumsOfYear(response: JsonObject): List<Album> {
         val results = response["results"]?.jsonArray ?: return emptyList()
         return results.mapNotNull { parseAlbumToAlbum(it.jsonObject) }

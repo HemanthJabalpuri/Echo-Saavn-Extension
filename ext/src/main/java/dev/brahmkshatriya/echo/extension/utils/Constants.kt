@@ -12,5 +12,9 @@ val LANGUAGES = listOf(
     "Kannada",
     "Bhojpuri",
     "Malayalam",
-    "Urdu"
+    "Sanskrit",
+    "Haryanvi",
+    "Rajasthani",
+    "Odia",
+    "Assamese"
 )

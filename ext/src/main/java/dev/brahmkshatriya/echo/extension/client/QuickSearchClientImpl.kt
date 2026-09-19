@@ -77,8 +77,8 @@ class QuickSearchClientImpl(
         val results = fetchAll(query, limit = 5)
         
         val items = mutableListOf<QuickSearchItem>()
-        results.songs.take(3).forEach { items.add(QuickSearchItem.Media(it, false)) }
-        results.albums.take(3).forEach { items.add(QuickSearchItem.Media(it, false)) }
+        results.songs.take(2).forEach { items.add(QuickSearchItem.Media(it, false)) }
+        results.albums.take(2).forEach { items.add(QuickSearchItem.Media(it, false)) }
         results.artists.take(2).forEach { items.add(QuickSearchItem.Media(it, false)) }
         results.playlists.take(2).forEach { items.add(QuickSearchItem.Media(it, false)) }
         

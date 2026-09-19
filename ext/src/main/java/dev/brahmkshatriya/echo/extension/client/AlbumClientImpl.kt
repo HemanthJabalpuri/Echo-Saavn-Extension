@@ -96,6 +96,33 @@ class AlbumClientImpl(
             }
         }
 
+        // ===== TRENDING ALBUMS SHELF =====
+        val language_t = response["modules"]?.jsonObject
+            ?.get("currentlyTrending")?.jsonObject
+            ?.get("source_params")?.jsonObject
+            ?.get("entity_language")?.jsonPrimitive?.content
+
+        if (!language_t.isNullOrBlank()) {
+            try {
+                val trendingResponse = api.home.getTrending("album", language_t)
+                val trendingAlbums = parser.album.parseTrendingAlbums(trendingResponse)
+                    .filter { it.id != album.id }
+
+                if (trendingAlbums.isNotEmpty()) {
+                    shelves.add(
+                        Shelf.Lists.Items(
+                            id = "trending_albums",
+                            title = "Trending Albums",
+                            list = trendingAlbums,
+                            subtitle = "${trendingAlbums.size} albums"
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                Logger.e("AlbumClient", "Failed to load trending albums", e)
+            }
+        }
+
         // ===== TOP ALBUMS FROM SAME YEAR =====
         val year = response["year"]?.jsonPrimitive?.content
         val language = response["language"]?.jsonPrimitive?.content

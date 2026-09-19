@@ -82,6 +82,33 @@ class PlaylistClientImpl(
             }
         }
 
+        // ===== TRENDING PLAYLISTS SHELF =====
+        val language = response["modules"]?.jsonObject
+            ?.get("currentlyTrendingPlaylists")?.jsonObject
+            ?.get("source_params")?.jsonObject
+            ?.get("entity_language")?.jsonPrimitive?.content
+
+        if (!language.isNullOrBlank()) {
+            try {
+                val trendingResponse = api.home.getTrending("playlist", language)
+                val trendingPlaylists = parser.playlist.parseTrendingPlaylists(trendingResponse)
+                    .filter { it.id != playlist.id }
+
+                if (trendingPlaylists.isNotEmpty()) {
+                    shelves.add(
+                        Shelf.Lists.Items(
+                            id = "trending_playlists",
+                            title = "Trending Playlists",
+                            list = trendingPlaylists,
+                            subtitle = "${trendingPlaylists.size} playlists"
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                Logger.e("PlaylistClient", "Failed to load trending playlists", e)
+            }
+        }
+
         // ===== ARTISTS SHELF =====
         val artists = parser.playlist.parsePlaylistArtists(response)
         if (artists.isNotEmpty()) {
