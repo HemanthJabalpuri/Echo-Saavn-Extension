@@ -3,6 +3,7 @@ package dev.brahmkshatriya.echo.extension.parser
 import dev.brahmkshatriya.echo.common.models.Playlist
 import dev.brahmkshatriya.echo.common.models.Track
 import dev.brahmkshatriya.echo.common.models.ImageHolder.Companion.toImageHolder
+import dev.brahmkshatriya.echo.common.models.Artist
 
 import kotlinx.serialization.json.*
 
@@ -52,4 +53,20 @@ class PlaylistParser(
             null
         }
     }
+
+    fun parseRelatedPlaylists(response: JsonObject): List<Playlist> {
+        val results = response["results"]?.jsonArray ?: return emptyList()
+        return results.mapNotNull { parsePlaylistToPlaylist(it.jsonObject) }
+    }
+
+    fun parsePlaylistArtists(response: JsonObject): List<Artist> {
+        val artists = response["more_info"]?.jsonObject
+            ?.get("artists")?.jsonArray
+            ?: return emptyList()
+        
+        return artists
+            .distinctBy { it.jsonObject["id"]?.jsonPrimitive?.content }
+            .mapNotNull { parseArtistFromJson(it.jsonObject) }
+    }
+
 }

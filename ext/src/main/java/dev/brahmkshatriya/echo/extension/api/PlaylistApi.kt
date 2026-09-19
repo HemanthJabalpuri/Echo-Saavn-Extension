@@ -26,4 +26,12 @@ class PlaylistApi : BaseApi() {
             "n" to "100"
         )
     )
+
+    suspend fun getPlaylistReco(listId: String): JsonObject = executeRequest(
+        call = "reco.getPlaylistReco",
+        params = mapOf(
+            "listid" to listId
+        )
+    )
+
 }
