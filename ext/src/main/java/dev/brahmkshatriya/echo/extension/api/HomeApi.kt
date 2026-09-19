@@ -8,4 +8,19 @@ class HomeApi : BaseApi() {
         call = "webapi.getLaunchData",
         headers = mapOf("Cookie" to "L=$language;")
     )
+
+    suspend fun getMore(
+        api: String,
+        page: Int,
+        size: Int,
+        pageParam: String,
+        sizeParam: String
+    ): JsonObject = executeRequest(
+        call = api,
+        params = mapOf(
+            pageParam to page.toString(),
+            sizeParam to size.toString()
+        )
+    )
+
 }

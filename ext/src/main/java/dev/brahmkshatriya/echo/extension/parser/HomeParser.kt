@@ -7,6 +7,21 @@ import kotlinx.serialization.json.*
 
 import dev.brahmkshatriya.echo.extension.utils.Logger
 
+data class HomeSection(
+    val id: String,
+    val title: String,
+    val subtitle: String?,
+    val items: List<EchoMediaItem>,
+    val moreInfo: MoreInfo?
+)
+
+data class MoreInfo(
+    val api: String,
+    val pageParam: String,
+    val sizeParam: String,
+    val defaultSize: Int
+)
+
 class HomeParser(
     private val trackParser: TrackParser,
     private val albumParser: AlbumParser,
@@ -14,51 +29,67 @@ class HomeParser(
     private val playlistParser: PlaylistParser
 ) : BaseParser() {
 
-    fun parseHomeFeed(obj: JsonObject): List<Shelf> {
-        return try {
-            val modules = obj["modules"]?.jsonObject ?: return emptyList()
-            
-            val shelves = mutableListOf<Shelf>()
-            
-            modules.keys.forEach { key ->
-                val moduleMeta = modules[key]?.jsonObject ?: return@forEach
-                val sectionData = obj[key]?.jsonArray ?: return@forEach
-                
-                val title = decodeHtml(moduleMeta["title"]?.jsonPrimitive?.content ?: "")
-                if (title.isBlank()) return@forEach
-                
-                val subtitle = moduleMeta["subtitle"]?.jsonPrimitive?.content
-                
-                val items = sectionData.mapNotNull { element ->
-                    parseHomeItem(element.jsonObject)
-                }
-                
-                if (items.isNotEmpty()) {
-                    shelves.add(
-                        Shelf.Lists.Items(
-                            id = key,
-                            title = title,
-                            list = items,
-                            subtitle = subtitle
-                        )
-                    )
-                }
+    fun parseHomeSections(response: JsonObject): List<HomeSection> {
+        val modules = response["modules"]?.jsonObject ?: return emptyList()
+        
+        return modules.entries
+            .sortedBy { (_, module) ->
+                module.jsonObject["position"]?.jsonPrimitive?.intOrNull ?: 0
             }
-            
-            shelves
-        } catch (e: Exception) {
-            Logger.e("ArtistParser", "Failed to parse home feed: ${e.message}", e)
-            emptyList()
-        }
+            .mapNotNull { (key, moduleElement) ->
+                val module = moduleElement.jsonObject
+                val title = decodeHtml(module["title"]?.jsonPrimitive?.content ?: "")
+                if (title.isBlank()) return@mapNotNull null
+                
+                val sectionData = response[key]?.jsonArray ?: return@mapNotNull null
+                val items = sectionData.mapNotNull { parseHomeItem(it.jsonObject) }
+                if (items.isEmpty()) return@mapNotNull null
+                
+                val subtitle = module["subtitle"]?.jsonPrimitive?.content
+                
+                // Extract more info
+                val moreInfo = module["view_more"]?.let { viewMoreElement ->
+                    if (viewMoreElement is JsonObject) {
+                        val api = viewMoreElement["api"]?.jsonPrimitive?.content
+                        if (!api.isNullOrBlank()) {
+                            MoreInfo(
+                                api = api,
+                                pageParam = viewMoreElement["page_param"]?.jsonPrimitive?.content ?: "p",
+                                sizeParam = viewMoreElement["size_param"]?.jsonPrimitive?.content ?: "n",
+                                defaultSize = viewMoreElement["default_size"]?.jsonPrimitive?.intOrNull ?: 10
+                            )
+                        } else null
+                    } else null
+                }
+                
+                HomeSection(
+                    id = key,
+                    title = title,
+                    subtitle = subtitle,
+                    items = items,
+                    moreInfo = moreInfo
+                )
+            }
     }
-
+    
     private fun parseHomeItem(obj: JsonObject): EchoMediaItem? {
-        return when (obj["type"]?.jsonPrimitive?.content) {
+        val type = obj["type"]?.jsonPrimitive?.content ?: ""
+        return when (type) {
             "song" -> trackParser.parseSongToTrack(obj)
             "album" -> albumParser.parseAlbumToAlbum(obj)
             "playlist" -> playlistParser.parsePlaylistToPlaylist(obj)
             "artist" -> artistParser.parseArtistToArtist(obj)
             else -> null
+        }
+    }
+    
+    fun parseMoreResponse(response: JsonObject): List<Shelf.Item> {
+        val array = response["results"]?.jsonArray
+            ?: response["data"]?.jsonArray
+            ?: return emptyList()
+        
+        return array.mapNotNull { element ->
+            parseHomeItem(element.jsonObject)?.toShelf()
         }
     }
 }

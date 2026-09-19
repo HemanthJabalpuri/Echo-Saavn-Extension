@@ -53,56 +53,34 @@ class PlaylistClientImpl(
     }
 
     // ===== LOAD FEED =====
-override suspend fun loadFeed(playlist: Playlist): Feed<Shelf>? {
-    val response = cachedResponse.takeIf { cachedPlaylistId == playlist.id }
-        ?: return null
-
-    val shelves = mutableListOf<Shelf>()
-
-    // ===== RELATED PLAYLISTS =====
-    val rawListId = response["id"]?.jsonPrimitive?.content
-    if (!rawListId.isNullOrBlank()) {
-        try {
-            val recoResponse = api.playlist.getPlaylistReco(rawListId)
-            val relatedPlaylists = parser.playlist.parseRelatedPlaylists(recoResponse)
-                .filter { it.id != playlist.id }
-
-            if (relatedPlaylists.isNotEmpty()) {
-                shelves.add(
-                    Shelf.Lists.Items(
-                        id = "related_playlists",
-                        title = "Related Playlists",
-                        list = relatedPlaylists,
-                        subtitle = "${relatedPlaylists.size} playlists"
-                    )
-                )
-            }
-        } catch (e: Exception) {
-            Logger.e("PlaylistClient", "Failed to load related playlists", e)
-        }
-    }
-
-    // ===== ARTISTS SHELF =====
-    val artists = parser.playlist.parsePlaylistArtists(response)
-    if (artists.isNotEmpty()) {
-        shelves.add(
-            Shelf.Lists.Items(
-                id = "playlist_artists",
-                title = "Artists",
-                list = artists,
-                subtitle = "${artists.size} artists"
-            )
-        )
-    }
-
-    return if (shelves.isEmpty()) null else shelves.toFeed()
-}
-/*
     override suspend fun loadFeed(playlist: Playlist): Feed<Shelf>? {
         val response = cachedResponse.takeIf { cachedPlaylistId == playlist.id }
             ?: return null
 
         val shelves = mutableListOf<Shelf>()
+
+        // ===== RELATED PLAYLISTS =====
+        val rawListId = response["id"]?.jsonPrimitive?.content
+        if (!rawListId.isNullOrBlank()) {
+            try {
+                val recoResponse = api.playlist.getPlaylistReco(rawListId)
+                val relatedPlaylists = parser.playlist.parseRelatedPlaylists(recoResponse)
+                    .filter { it.id != playlist.id }
+
+                if (relatedPlaylists.isNotEmpty()) {
+                    shelves.add(
+                        Shelf.Lists.Items(
+                            id = "related_playlists",
+                            title = "Related Playlists",
+                            list = relatedPlaylists,
+                            subtitle = "${relatedPlaylists.size} playlists"
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                Logger.e("PlaylistClient", "Failed to load related playlists", e)
+            }
+        }
 
         // ===== ARTISTS SHELF =====
         val artists = parser.playlist.parsePlaylistArtists(response)
@@ -119,6 +97,5 @@ override suspend fun loadFeed(playlist: Playlist): Feed<Shelf>? {
 
         return if (shelves.isEmpty()) null else shelves.toFeed()
     }
-*/
 
 }
