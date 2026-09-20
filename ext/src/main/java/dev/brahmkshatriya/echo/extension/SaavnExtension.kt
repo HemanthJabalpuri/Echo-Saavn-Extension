@@ -9,7 +9,7 @@ import kotlinx.serialization.json.JsonObject
 
 import dev.brahmkshatriya.echo.extension.client.*
 import dev.brahmkshatriya.echo.extension.utils.LANGUAGES
-import dev.brahmkshatriya.echo.extension.utils.LocalRecentStore
+import dev.brahmkshatriya.echo.extension.storage.LocalRecentStore
 import dev.brahmkshatriya.echo.extension.utils.Logger
 
 object SaavnDependencies {
@@ -64,8 +64,7 @@ class SaavnExtension : ExtensionClient,
     override suspend fun onTrackChanged(details: TrackDetails?) {
         val settings = SaavnDependencies.settings ?: return
         val track = details?.track ?: return
-        Logger.d("Tracker", "onTrackChanged: ${track.title}")
-        LocalRecentStore.record(settings, track)
+        LocalRecentStore.add(settings, track)
     }
 
     override suspend fun onPlayingStateChanged(details: TrackDetails?, isPlaying: Boolean) {

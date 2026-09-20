@@ -2,14 +2,12 @@ package dev.brahmkshatriya.echo.extension.client
 
 import dev.brahmkshatriya.echo.common.clients.LibraryFeedClient
 import dev.brahmkshatriya.echo.common.models.Feed
-import dev.brahmkshatriya.echo.common.models.Shelf
-import dev.brahmkshatriya.echo.common.models.Tab
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeed
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeedData
+import dev.brahmkshatriya.echo.common.models.Shelf
 import dev.brahmkshatriya.echo.common.settings.Settings
 import dev.brahmkshatriya.echo.extension.SaavnDependencies
-import dev.brahmkshatriya.echo.extension.utils.LocalLikedStore
-import dev.brahmkshatriya.echo.extension.utils.LocalRecentStore
+import dev.brahmkshatriya.echo.extension.storage.*
 
 class LibraryFeedClientImpl : LibraryFeedClient {
 
@@ -17,49 +15,62 @@ class LibraryFeedClientImpl : LibraryFeedClient {
         val settings = SaavnDependencies.settings
             ?: return emptyList<Shelf>().toFeed()
 
-        val tabs = listOf(
-            Tab("liked", "Liked"),
-            Tab("recent", "Recently Played")
-        )
-
-        return Feed(tabs) { tab ->
-            when (tab?.id) {
-                "liked" -> buildLikedFeed(settings)
-                "recent" -> buildRecentFeed(settings)
-                else -> emptyList<Shelf>().toFeedData()
-            }
-        }
+        return buildLikedFeed(settings).toFeed()
     }
 
-    private fun buildLikedFeed(settings: Settings): Feed.Data<Shelf> {
-        val tracks = LocalLikedStore.getAll(settings)
-        return if (tracks.isEmpty()) {
-            emptyList<Shelf>().toFeedData()
-        } else {
-            listOf(
-                Shelf.Lists.Tracks(
-                    id = "liked_tracks",
-                    title = "Liked Songs",
-                    list = tracks,
-                    subtitle = "${tracks.size} tracks"
-                )
-            ).toFeedData()
-        }
-    }
+    private fun buildLikedFeed(settings: Settings): List<Shelf> {
+        val shelves = mutableListOf<Shelf>()
 
-    private fun buildRecentFeed(settings: Settings): Feed.Data<Shelf> {
-        val tracks = LocalRecentStore.getAll(settings)
-        return if (tracks.isEmpty()) {
-            emptyList<Shelf>().toFeedData()
-        } else {
-            listOf(
-                Shelf.Lists.Tracks(
-                    id = "recent_tracks",
-                    title = "Recently Played",
-                    list = tracks,
-                    subtitle = "${tracks.size} tracks"
-                )
-            ).toFeedData()
+        val recent = LocalRecentStore.getAll(settings)
+        if (recent.isNotEmpty()) {
+            shelves.add(Shelf.Lists.Tracks(
+                id = "recent_tracks",
+                title = "Recently Played",
+                list = recent,
+                subtitle = "${recent.size} tracks"
+            ))
         }
+
+        val tracks = LocalLikedTracksStore.getAll(settings)
+        if (tracks.isNotEmpty()) {
+            shelves.add(Shelf.Lists.Tracks(
+                id = "liked_tracks",
+                title = "Liked Songs",
+                list = tracks,
+                subtitle = "${tracks.size} tracks"
+            ))
+        }
+
+        val albums = LocalLikedAlbumsStore.getAll(settings)
+        if (albums.isNotEmpty()) {
+            shelves.add(Shelf.Lists.Items(
+                id = "liked_albums",
+                title = "Liked Albums",
+                list = albums,
+                subtitle = "${albums.size} albums"
+            ))
+        }
+
+        val artists = LocalLikedArtistsStore.getAll(settings)
+        if (artists.isNotEmpty()) {
+            shelves.add(Shelf.Lists.Items(
+                id = "liked_artists",
+                title = "Liked Artists",
+                list = artists,
+                subtitle = "${artists.size} artists"
+            ))
+        }
+
+        val playlists = LocalLikedPlaylistsStore.getAll(settings)
+        if (playlists.isNotEmpty()) {
+            shelves.add(Shelf.Lists.Items(
+                id = "liked_playlists",
+                title = "Liked Playlists",
+                list = playlists,
+                subtitle = "${playlists.size} playlists"
+            ))
+        }
+
+        return shelves
     }
 }

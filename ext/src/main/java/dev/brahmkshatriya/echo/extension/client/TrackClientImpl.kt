@@ -20,12 +20,6 @@ class TrackClientImpl(
 ) : TrackClient {
 
     override suspend fun loadTrack(track: Track, isDownload: Boolean): Track {
-        // If track has streamables, return as-is
-        if (track.streamables.isNotEmpty()) {
-            return track
-        }
-        
-        // Otherwise fetch details
         val token = track.getToken()
         val response = api.track.getDetails(token)
 

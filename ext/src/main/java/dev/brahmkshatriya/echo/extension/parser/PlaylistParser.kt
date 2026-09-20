@@ -28,6 +28,7 @@ class PlaylistParser(
             cover = convertImageUrl(image).toImageHolder(),
             trackCount = songCount.toLongOrNull(),
             subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
+            isLikeable = true,
             extras = mapOf(
                 "permaUrl" to (obj["perma_url"]?.jsonPrimitive?.content ?: ""),
             )

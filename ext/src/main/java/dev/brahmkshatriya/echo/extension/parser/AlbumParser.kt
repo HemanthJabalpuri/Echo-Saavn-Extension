@@ -33,6 +33,7 @@ class AlbumParser(
             releaseDate = parseDate(obj["year"]?.jsonPrimitive?.content),
             isExplicit = obj["explicit_content"]?.jsonPrimitive?.content == "1",
             subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
+            isLikeable = true,
             extras = mapOf(
                 "permaUrl" to (obj["perma_url"]?.jsonPrimitive?.content ?: ""),
                 "artistMapJson" to (artistMap?.toString() ?: "{}")
