@@ -10,6 +10,7 @@ import dev.brahmkshatriya.echo.common.models.NetworkRequest.Companion.toGetReque
 
 import dev.brahmkshatriya.echo.extension.JioSaavnApi
 import dev.brahmkshatriya.echo.extension.JioSaavnParser
+import dev.brahmkshatriya.echo.extension.SaavnDependencies
 import dev.brahmkshatriya.echo.extension.utils.decryptUrl
 import dev.brahmkshatriya.echo.extension.utils.getToken
 
@@ -121,7 +122,6 @@ class TrackClientImpl(
             val songId = track.id
             val response = api.radio.createSongStation(songId)
             val stationId = parser.radio.parseStationId(response)
-
             if (stationId != null) {
                 val suggestionsResponse = api.radio.getSongSuggestions(stationId, limit = 20)
                 val songs = parser.radio.parseSongSuggestions(suggestionsResponse)
@@ -133,6 +133,25 @@ class TrackClientImpl(
                             title = "Similar Tracks",
                             list = songs,
                             subtitle = "You might also like"
+                        )
+                    )
+                }
+            }
+
+            // ===== MORE FROM ALBUM SHELF =====
+            val album = track.album
+            val albumId = album?.id
+            if (albumId != null && SaavnDependencies.cachedAlbumId == albumId) {
+                val albumTracks = SaavnDependencies.cachedAlbumTracks ?: emptyList()
+                val otherTracks = albumTracks.filter { it.id != track.id }
+
+                if (otherTracks.isNotEmpty()) {
+                    shelves.add(
+                        Shelf.Lists.Items(
+                            id = "more_from_album",
+                            title = "More from ${album.title}",  // ← Now smart-cast works
+                            list = otherTracks,
+                            subtitle = "${otherTracks.size} tracks"
                         )
                     )
                 }
