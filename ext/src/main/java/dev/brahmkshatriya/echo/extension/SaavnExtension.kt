@@ -3,11 +3,14 @@ package dev.brahmkshatriya.echo.extension
 import dev.brahmkshatriya.echo.common.clients.*
 import dev.brahmkshatriya.echo.common.settings.*
 import dev.brahmkshatriya.echo.common.models.Track
+import dev.brahmkshatriya.echo.common.models.TrackDetails
 
 import kotlinx.serialization.json.JsonObject
 
 import dev.brahmkshatriya.echo.extension.client.*
 import dev.brahmkshatriya.echo.extension.utils.LANGUAGES
+import dev.brahmkshatriya.echo.extension.utils.LocalRecentStore
+import dev.brahmkshatriya.echo.extension.utils.Logger
 
 object SaavnDependencies {
     val api by lazy { JioSaavnApi() }
@@ -34,6 +37,7 @@ class SaavnExtension : ExtensionClient,
     ArtistClient by ArtistClientImpl(SaavnDependencies.api, SaavnDependencies.parser),
     PlaylistClient by PlaylistClientImpl(SaavnDependencies.api, SaavnDependencies.parser),
     LibraryFeedClient by LibraryFeedClientImpl(),
+    TrackerClient,
     LikeClient by LikeClientImpl(),
     ShareClient by ShareClientImpl() {
 
@@ -55,6 +59,17 @@ class SaavnExtension : ExtensionClient,
 
     override fun setSettings(settings: Settings) {
         SaavnDependencies.settings = settings
+    }
+
+    override suspend fun onTrackChanged(details: TrackDetails?) {
+        val settings = SaavnDependencies.settings ?: return
+        val track = details?.track ?: return
+        Logger.d("Tracker", "onTrackChanged: ${track.title}")
+        LocalRecentStore.record(settings, track)
+    }
+
+    override suspend fun onPlayingStateChanged(details: TrackDetails?, isPlaying: Boolean) {
+        // Not needed for recently played
     }
 
 }
