@@ -19,6 +19,7 @@ import kotlinx.coroutines.coroutineScope
 
 import dev.brahmkshatriya.echo.extension.JioSaavnApi
 import dev.brahmkshatriya.echo.extension.JioSaavnParser
+import dev.brahmkshatriya.echo.extension.utils.Logger
 
 class QuickSearchClientImpl(
     private val api: JioSaavnApi,
@@ -70,19 +71,25 @@ class QuickSearchClientImpl(
         )
     }
 
-    // ===== QUICK SEARCH =====
     override suspend fun quickSearch(query: String): List<QuickSearchItem> {
         if (query.isBlank()) return emptyList()
         
-        val results = fetchAll(query, limit = 5)
-        
-        val items = mutableListOf<QuickSearchItem>()
-        results.songs.take(2).forEach { items.add(QuickSearchItem.Media(it, false)) }
-        results.albums.take(2).forEach { items.add(QuickSearchItem.Media(it, false)) }
-        results.artists.take(2).forEach { items.add(QuickSearchItem.Media(it, false)) }
-        results.playlists.take(2).forEach { items.add(QuickSearchItem.Media(it, false)) }
-        
-        return items
+        return try {
+            val response = api.search.all(query)
+            val result = parser.search.parseSearchAll(response)
+            
+            val items = mutableListOf<QuickSearchItem>()
+            result.topQuery?.let { items.add(QuickSearchItem.Media(it, false)) }
+            result.songs.take(2).forEach { items.add(QuickSearchItem.Media(it, false)) }
+            result.albums.take(2).forEach { items.add(QuickSearchItem.Media(it, false)) }
+            result.artists.take(2).forEach { items.add(QuickSearchItem.Media(it, false)) }
+            result.playlists.take(2).forEach { items.add(QuickSearchItem.Media(it, false)) }
+            
+            items
+        } catch (e: Exception) {
+            Logger.e("QuickSearch", "Failed", e)
+            emptyList()
+        }
     }
 
     override suspend fun deleteQuickSearch(item: QuickSearchItem) {

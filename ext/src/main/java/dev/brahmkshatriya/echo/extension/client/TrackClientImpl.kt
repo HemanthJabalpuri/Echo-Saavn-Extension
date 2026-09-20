@@ -18,7 +18,17 @@ class TrackClientImpl(
 ) : TrackClient {
 
     override suspend fun loadTrack(track: Track, isDownload: Boolean): Track {
-        return track
+        // If track has streamables, return as-is
+        if (track.streamables.isNotEmpty()) {
+            return track
+        }
+        
+        // Otherwise fetch details
+        val songId = track.id
+        val response = api.track.getDetails(songId)
+        
+        // Parse from "songs" array
+        return parser.track.parseSongDetails(response).firstOrNull() ?: track
     }
 
     override suspend fun loadStreamableMedia(
