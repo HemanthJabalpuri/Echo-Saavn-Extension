@@ -33,6 +33,8 @@ class SaavnExtension : ExtensionClient,
     AlbumClient by AlbumClientImpl(SaavnDependencies.api, SaavnDependencies.parser),
     ArtistClient by ArtistClientImpl(SaavnDependencies.api, SaavnDependencies.parser),
     PlaylistClient by PlaylistClientImpl(SaavnDependencies.api, SaavnDependencies.parser),
+    LibraryFeedClient by LibraryFeedClientImpl(),
+    LikeClient by LikeClientImpl(),
     ShareClient by ShareClientImpl() {
 
     private lateinit var settings: Settings
