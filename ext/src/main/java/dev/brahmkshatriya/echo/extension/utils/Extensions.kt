@@ -1,6 +1,7 @@
 package dev.brahmkshatriya.echo.extension.utils
 
 import dev.brahmkshatriya.echo.common.models.Date
+import dev.brahmkshatriya.echo.common.models.EchoMediaItem
 
 import java.nio.charset.StandardCharsets
 import java.util.Base64
@@ -52,3 +53,10 @@ fun parseDate(dateStr: String?): Date? {
         null
     }
 }
+
+fun String?.extractToken(): String {
+    if (this.isNullOrBlank()) return ""
+    return substringAfterLast("/").takeIf { it.isNotBlank() } ?: ""
+}
+
+fun EchoMediaItem.getToken(): String = extras["permaUrl"].extractToken()

@@ -14,8 +14,7 @@ import dev.brahmkshatriya.echo.extension.utils.parseDuration
 class TrackParser : BaseParser() {
 
     fun parseSongToTrack(obj: JsonObject): Track? {
-        val id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return null
-        val numericId = obj["id"]?.jsonPrimitive?.content ?: ""
+        val id = obj["id"]?.jsonPrimitive?.content ?: return null
         val moreInfo = obj["more_info"]?.jsonObject
         val artistMap = moreInfo?.get("artistMap")?.jsonObject
 
@@ -23,8 +22,8 @@ class TrackParser : BaseParser() {
         val artists = parsePrimaryArtists(artistMap)
 
         // Album
-        val albumUrl = moreInfo?.get("album_url")?.jsonPrimitive?.content
-        val albumId = albumUrl?.substringAfterLast("/")
+        val albumUrl = moreInfo?.get("album_url")?.jsonPrimitive?.content ?: ""
+        val albumId = moreInfo?.get("album_id")?.jsonPrimitive?.content ?: ""
         val albumTitle = moreInfo?.get("album")?.jsonPrimitive?.content ?: ""
         val image = obj["image"]?.jsonPrimitive?.content ?: ""
         val album = albumId?.let {
@@ -69,7 +68,6 @@ class TrackParser : BaseParser() {
             isExplicit = obj["explicit_content"]?.jsonPrimitive?.content == "1",
             subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
             extras = mapOf(
-                "songId" to numericId,
                 "permaUrl" to (obj["perma_url"]?.jsonPrimitive?.content ?: ""),
                 "otherArtistsJson" to (artistMap?.toString() ?: "{}"),
                 "hasLyrics" to (moreInfo?.get("has_lyrics")?.jsonPrimitive?.content ?: "false"),

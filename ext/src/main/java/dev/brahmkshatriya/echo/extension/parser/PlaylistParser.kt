@@ -15,7 +15,7 @@ class PlaylistParser(
 ) : BaseParser() {
 
     fun parsePlaylistToPlaylist(obj: JsonObject): Playlist? {
-        val id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return null
+        val id = obj["id"]?.jsonPrimitive?.content ?: return null
 
         val image = obj["image"]?.jsonPrimitive?.content ?: ""
         val songCount = obj["list_count"]?.jsonPrimitive?.content ?: "0"

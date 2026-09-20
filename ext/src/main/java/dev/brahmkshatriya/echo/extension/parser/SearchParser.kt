@@ -31,7 +31,7 @@ class SearchParser : BaseParser() {
     private fun parseSearchItem(obj: JsonObject): EchoMediaItem? {
         val type = obj["type"]?.jsonPrimitive?.content ?: return null
         val permaUrl = obj["perma_url"]?.jsonPrimitive?.content ?: ""
-        val id = permaUrl.substringAfterLast("/")
+        val id = obj["id"]?.jsonPrimitive?.content ?: return null
 
         val title = decodeHtml(obj["title"]?.jsonPrimitive?.content ?: "")
         val subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: "")
@@ -55,7 +55,7 @@ class SearchParser : BaseParser() {
                 extras = extras
             )
             "artist" -> Artist(
-                id = obj["id"]?.jsonPrimitive?.content ?: "",
+                id = id,
                 name = title,
                 subtitle = subtitle,
                 cover = cover,

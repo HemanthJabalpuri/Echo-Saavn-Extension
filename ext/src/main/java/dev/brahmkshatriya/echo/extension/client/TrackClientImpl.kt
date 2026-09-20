@@ -11,6 +11,7 @@ import dev.brahmkshatriya.echo.common.models.NetworkRequest.Companion.toGetReque
 import dev.brahmkshatriya.echo.extension.JioSaavnApi
 import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.utils.decryptUrl
+import dev.brahmkshatriya.echo.extension.utils.getToken
 
 class TrackClientImpl(
     private val api: JioSaavnApi,
@@ -24,9 +25,9 @@ class TrackClientImpl(
         }
         
         // Otherwise fetch details
-        val songId = track.id
-        val response = api.track.getDetails(songId)
-        
+        val token = track.getToken()
+        val response = api.track.getDetails(token)
+
         // Parse from "songs" array
         return parser.track.parseSongDetails(response).firstOrNull() ?: track
     }
@@ -117,7 +118,7 @@ class TrackClientImpl(
             }
 
             // ===== SIMILAR TRACKS SHELF =====
-            val songId = track.extras["songId"] ?: track.id
+            val songId = track.id
             val response = api.radio.createSongStation(songId)
             val stationId = parser.radio.parseStationId(response)
 

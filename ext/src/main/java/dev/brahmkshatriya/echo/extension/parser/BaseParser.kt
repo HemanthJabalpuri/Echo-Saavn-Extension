@@ -26,11 +26,11 @@ open class BaseParser {
 
     protected fun parseArtistFromJson(obj: JsonObject): Artist? {
         // Try search format first, fallback to detail format
-        val permaUrl = obj["perma_url"]?.jsonPrimitive?.content
-            ?: obj["urls"]?.jsonObject?.get("overview")?.jsonPrimitive?.content
-            ?: ""
         val numericId = obj["id"]?.jsonPrimitive?.content
             ?: obj["artistId"]?.jsonPrimitive?.content
+            ?: ""
+        val permaUrl = obj["perma_url"]?.jsonPrimitive?.content
+            ?: obj["urls"]?.jsonObject?.get("overview")?.jsonPrimitive?.content
             ?: ""
 
         return Artist(

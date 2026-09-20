@@ -15,7 +15,7 @@ class AlbumParser(
 ) : BaseParser() {
 
     fun parseAlbumToAlbum(obj: JsonObject): Album? {
-        val id = obj["perma_url"]?.jsonPrimitive?.content?.substringAfterLast("/") ?: return null
+        val id = obj["id"]?.jsonPrimitive?.content ?: return null
         val moreInfo = obj["more_info"]?.jsonObject
         val artistMap = moreInfo?.get("artistMap")?.jsonObject
 

@@ -16,6 +16,7 @@ import dev.brahmkshatriya.echo.extension.JioSaavnApi
 import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.utils.Logger
 import dev.brahmkshatriya.echo.extension.api.ArtistApi.ArtistCategory
+import dev.brahmkshatriya.echo.extension.utils.getToken
 
 class ArtistClientImpl(
     private val api: JioSaavnApi,
@@ -40,11 +41,11 @@ class ArtistClientImpl(
 
         // Try to get token from extras
         var resolvedArtist = artist
-        var token = artist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
+        var token = artist.getToken()
 
         // If token missing, search by name and match by artist.id
         // In song suggestions, perma_url is empty, that's why
-        if (token.isNullOrBlank()) {
+        if (token.isBlank()) {
             Logger.d("ArtistClient", "Token missing for ${artist.name} (id=${artist.id}), searching by name")
             val matchedArtist = findArtistByName(artist.name, artist.id)
 
@@ -56,11 +57,11 @@ class ArtistClientImpl(
             // Use the matched artist (has permaUrl in extras)
             resolvedArtist = matchedArtist
             // Get token from permaUrl
-            token = resolvedArtist.extras["permaUrl"]?.substringAfterLast("/")?.takeIf { it.isNotBlank() }
-                ?: run {
-                    Logger.e("ArtistClient", "No token in permaUrl for: ${resolvedArtist.name}")
-                    return emptyList<Shelf>().toFeed()
-                }
+            token = resolvedArtist.getToken()
+            if (token.isBlank()) {
+                Logger.e("ArtistClient", "No token in permaUrl for: ${resolvedArtist.name}")
+                return emptyList<Shelf>().toFeed()
+            }
 
             Logger.d("ArtistClient", "Resolved artist: ${matchedArtist.name} (token=$token)")
         }

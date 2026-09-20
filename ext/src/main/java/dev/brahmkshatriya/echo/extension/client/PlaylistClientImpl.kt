@@ -12,6 +12,7 @@ import kotlinx.serialization.json.*
 import dev.brahmkshatriya.echo.extension.JioSaavnApi
 import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.utils.Logger
+import dev.brahmkshatriya.echo.extension.utils.getToken
 
 class PlaylistClientImpl(
     private val api: JioSaavnApi,
@@ -31,7 +32,8 @@ class PlaylistClientImpl(
         }
 
         // Fetch, parse, cache
-        val response = api.playlist.getDetails(playlist.id)
+        val token = playlist.getToken()
+        val response = api.playlist.getDetails(token)
         val parsedPlaylist = parser.playlist.parsePlaylistToPlaylist(response)
             ?: throw Exception("Playlist not found")
         val tracks = parser.playlist.parsePlaylistTracks(response)
@@ -60,26 +62,23 @@ class PlaylistClientImpl(
         val shelves = mutableListOf<Shelf>()
 
         // ===== RELATED PLAYLISTS =====
-        val rawListId = response["id"]?.jsonPrimitive?.content
-        if (!rawListId.isNullOrBlank()) {
-            try {
-                val recoResponse = api.playlist.getPlaylistReco(rawListId)
-                val relatedPlaylists = parser.playlist.parseRelatedPlaylists(recoResponse)
-                    .filter { it.id != playlist.id }
+        try {
+            val recoResponse = api.playlist.getPlaylistReco(playlist.id)
+            val relatedPlaylists = parser.playlist.parseRelatedPlaylists(recoResponse)
+                .filter { it.id != playlist.id }
 
-                if (relatedPlaylists.isNotEmpty()) {
-                    shelves.add(
-                        Shelf.Lists.Items(
-                            id = "related_playlists",
-                            title = "Related Playlists",
-                            list = relatedPlaylists,
-                            subtitle = "${relatedPlaylists.size} playlists"
-                        )
+            if (relatedPlaylists.isNotEmpty()) {
+                shelves.add(
+                    Shelf.Lists.Items(
+                        id = "related_playlists",
+                        title = "Related Playlists",
+                        list = relatedPlaylists,
+                        subtitle = "${relatedPlaylists.size} playlists"
                     )
-                }
-            } catch (e: Exception) {
-                Logger.e("PlaylistClient", "Failed to load related playlists", e)
+                )
             }
+        } catch (e: Exception) {
+            Logger.e("PlaylistClient", "Failed to load related playlists", e)
         }
 
         // ===== TRENDING PLAYLISTS SHELF =====

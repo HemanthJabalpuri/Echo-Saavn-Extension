@@ -12,6 +12,7 @@ import kotlinx.serialization.json.*
 import dev.brahmkshatriya.echo.extension.JioSaavnApi
 import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.utils.Logger
+import dev.brahmkshatriya.echo.extension.utils.getToken
 
 class AlbumClientImpl(
     private val api: JioSaavnApi,
@@ -31,7 +32,8 @@ class AlbumClientImpl(
         }
 
         // Fetch, parse, cache
-        val response = api.album.getDetails(album.id)
+        val token = album.getToken()
+        val response = api.album.getDetails(token)
         val parsedAlbum = parser.album.parseAlbumToAlbum(response) ?: album
 
         cachedAlbumId = album.id
@@ -74,26 +76,23 @@ class AlbumClientImpl(
         }
 
         // ===== YOU MIGHT LIKE SHELF =====
-        val rawAlbumId = response["id"]?.jsonPrimitive?.content
-        if (!rawAlbumId.isNullOrBlank()) {
-            try {
-                val recoResponse = api.album.getAlbumReco(rawAlbumId)
-                val recoAlbums = parser.album.parseAlbumReco(recoResponse)
-                    .filter { it.id != album.id }
+        try {
+            val recoResponse = api.album.getAlbumReco(album.id)
+            val recoAlbums = parser.album.parseAlbumReco(recoResponse)
+                .filter { it.id != album.id }
 
-                if (recoAlbums.isNotEmpty()) {
-                    shelves.add(
-                        Shelf.Lists.Items(
-                            id = "you_might_like",
-                            title = "You Might Like",
-                            list = recoAlbums,
-                            subtitle = "${recoAlbums.size} albums"
-                        )
+            if (recoAlbums.isNotEmpty()) {
+                shelves.add(
+                    Shelf.Lists.Items(
+                        id = "you_might_like",
+                        title = "You Might Like",
+                        list = recoAlbums,
+                        subtitle = "${recoAlbums.size} albums"
                     )
-                }
-            } catch (e: Exception) {
-                Logger.e("AlbumClient", "Failed to load album reco", e)
+                )
             }
+        } catch (e: Exception) {
+            Logger.e("AlbumClient", "Failed to load album reco", e)
         }
 
         // ===== TRENDING ALBUMS SHELF =====
