@@ -31,6 +31,16 @@ class LibraryFeedClientImpl : LibraryFeedClient {
             ))
         }
 
+        val myPlaylists = LocalPlaylistStore.getAll(settings)
+        if (myPlaylists.isNotEmpty()) {
+            shelves.add(Shelf.Lists.Items(
+                id = "my_playlists",
+                title = "My Playlists",
+                list = myPlaylists,
+                subtitle = "${myPlaylists.size} playlists"
+            ))
+        }
+
         val tracks = LocalLikedTracksStore.getAll(settings)
         if (tracks.isNotEmpty()) {
             shelves.add(Shelf.Lists.Tracks(
