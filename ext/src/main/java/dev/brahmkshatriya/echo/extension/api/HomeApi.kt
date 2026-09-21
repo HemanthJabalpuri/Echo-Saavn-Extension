@@ -14,13 +14,19 @@ class HomeApi : BaseApi() {
         page: Int,
         size: Int,
         pageParam: String,
-        sizeParam: String
+        sizeParam: String,
+        language: String? = null
     ): JsonObject = executeRequest(
         call = api,
         params = mapOf(
             pageParam to page.toString(),
             sizeParam to size.toString()
-        )
+        ),
+        headers = if (!language.isNullOrBlank()) {
+            mapOf("Cookie" to "L=$language;")
+        } else {
+            emptyMap()
+        }
     )
 
     suspend fun getTrending(entityType: String, language: String): JsonObject = executeRequest(

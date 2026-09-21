@@ -25,11 +25,8 @@ class HomeFeedClientImpl(
     override suspend fun loadHomeFeed(): Feed<Shelf> {
         val defaultLanguages = SaavnDependencies.getDefaultLanguages()
         
-        val tabs = listOf(
-            Tab(id = "default", title = "Default")
-        ) + LANGUAGES.map { lang ->
-            Tab(id = lang.lowercase(), title = lang)
-        }
+        val tabs = listOf(Tab(id = "default", title = "Default")) +
+                LANGUAGES.map { Tab(id = it.lowercase(), title = it) }
 
         return Feed(tabs) { tab ->
             try {
@@ -39,7 +36,7 @@ class HomeFeedClientImpl(
                 }
                 val response = api.home.getHomeData(language)
                 val sections = parser.home.parseHomeSections(response)
-                val shelves = sections.map { section -> buildShelf(section) }
+                val shelves = sections.map { section -> buildShelf(section, language) }
                 
                 shelves.toFeedData()
             } catch (e: Exception) {
@@ -49,9 +46,9 @@ class HomeFeedClientImpl(
         }
     }
 
-    private fun buildShelf(section: HomeSection): Shelf {
+    private fun buildShelf(section: HomeSection, language: String): Shelf {
         val more = section.moreInfo?.let { info ->
-            createMoreFeed(info)
+            createMoreFeed(info, language)
         }
         
         return Shelf.Lists.Items(
@@ -63,7 +60,7 @@ class HomeFeedClientImpl(
         )
     }
 
-    private fun createMoreFeed(info: MoreInfo): Feed<Shelf> {
+    private fun createMoreFeed(info: MoreInfo, language: String): Feed<Shelf> {
         return Feed(emptyList()) { _ ->
             Feed.Data(
                 PagedData.Continuous<Shelf> { continuation ->
@@ -74,10 +71,11 @@ class HomeFeedClientImpl(
                             page = page,
                             size = info.defaultSize,
                             pageParam = info.pageParam,
-                            sizeParam = info.sizeParam
+                            sizeParam = info.sizeParam,
+                            language = language
                         )
                         val items = parser.home.parseMoreResponse(response)
-                        val nextContinuation = if (items.size > 0) (page + 1).toString() else null
+                        val nextContinuation = if (items.isNotEmpty()) (page + 1).toString() else null
                         Page(items, nextContinuation)
                     } catch (e: Exception) {
                         Logger.e("HomeClient", "Failed to load more for ${info.api}", e)
