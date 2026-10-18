@@ -44,6 +44,10 @@ object SaavnDependencies {
     // Track cache
     var cachedTrackId: String? = null
     var cachedTrack: Track? = null
+
+
+    var sessionCookie: String? = null
+
 }
 
 class SaavnExtension : ExtensionClient,
@@ -57,7 +61,8 @@ class SaavnExtension : ExtensionClient,
     RadioClient by RadioClientImpl(SaavnDependencies.radioService),
     TrackerClient,
     LikeClient by LikeClientImpl(),
-    ShareClient by ShareClientImpl() {
+    ShareClient by ShareClientImpl(),
+    LoginClient.WebView by LoginClientImpl() {
 
     private lateinit var settings: Settings
 
