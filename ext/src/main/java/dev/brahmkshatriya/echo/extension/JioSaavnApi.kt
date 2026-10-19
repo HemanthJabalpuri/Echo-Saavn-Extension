@@ -10,4 +10,5 @@ class JioSaavnApi {
     val radio = RadioApi()
     val home = HomeApi()
     val search = SearchApi()
+    val library = LibraryApi()
 }
