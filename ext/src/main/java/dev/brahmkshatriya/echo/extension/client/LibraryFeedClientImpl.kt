@@ -2,6 +2,7 @@ package dev.brahmkshatriya.echo.extension.client
 
 import dev.brahmkshatriya.echo.common.clients.LibraryFeedClient
 import dev.brahmkshatriya.echo.common.helpers.PagedData
+import dev.brahmkshatriya.echo.common.helpers.Page
 import dev.brahmkshatriya.echo.common.models.Feed
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeedData
 import dev.brahmkshatriya.echo.common.models.Shelf
@@ -20,6 +21,7 @@ import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.SaavnDependencies
 import dev.brahmkshatriya.echo.extension.storage.*
 import dev.brahmkshatriya.echo.extension.utils.Logger
+import dev.brahmkshatriya.echo.extension.utils.runSafe
 
 class LibraryFeedClientImpl(
     private val api: JioSaavnApi,
@@ -42,7 +44,7 @@ class LibraryFeedClientImpl(
         }
     }
 
-    // ===== LOCAL TAB (unchanged behavior) =====
+    // ====== LOCAL TAB ======
 
     private fun loadLocalTab(): Feed.Data<Shelf> {
         val settings = SaavnDependencies.settings
@@ -123,8 +125,6 @@ class LibraryFeedClientImpl(
             buildSaavnShelves().toFeedData()
         } catch (e: ClientException.LoginRequired) {
             throw e
-        } catch (e: ClientException.Unauthorized) {
-            throw e
         } catch (e: Exception) {
             Logger.e("LibraryFeed", "Failed to load Saavn tab", e)
             emptyList<Shelf>().toFeedData()
@@ -136,16 +136,19 @@ class LibraryFeedClientImpl(
         val library = api.library.getAll()
 
         // ---- Liked Songs ----
-        val songIds = parser.library.parseSongIds(library)
+        val songIds = parser.library.parseSongIds(library).asReversed() // newest first
         if (songIds.isNotEmpty()) {
-            val tracks = fetchSongDetailsChunked(songIds)
-            if (tracks.isNotEmpty()) {
-                shelves.add(Shelf.Lists.Items(
-                    id = "saavn_liked_tracks",
-                    title = "Liked Songs",
-                    list = tracks,
-                    subtitle = "${tracks.size} tracks"
-                ))
+            val preview = fetchSongDetailsChunked(songIds.take(SHELF_PREVIEW_SIZE))
+            if (preview.isNotEmpty()) {
+                shelves.add(
+                    Shelf.Lists.Items(
+                        id = "saavn_liked_tracks",
+                        title = "Liked Songs",
+                        list = preview,
+                        subtitle = "${songIds.size} tracks",
+                        more = createLikedSongsMore(songIds),
+                    )
+                )
             }
         }
 
@@ -194,11 +197,36 @@ class LibraryFeedClientImpl(
         return shelves
     }
 
-    // ===== Chunked fetchers =====
+    private fun createLikedSongsMore(allSongIds: List<String>): Feed<Shelf> {
+        return Feed(emptyList()) { _ ->
+            PagedData.Continuous<Shelf> { continuation ->
+                val page = continuation?.toIntOrNull() ?: 1
+
+                runSafe("LibraryFeed", Page(emptyList<Shelf>(), null)) {
+                    val start = (page - 1) * PAGE_SIZE
+                    val end = minOf(start + PAGE_SIZE, allSongIds.size)
+
+                    if (start >= allSongIds.size) {
+                        // No more items — return empty page with null continuation
+                        return@runSafe Page(emptyList<Shelf>(), null)
+                    }
+
+                    val slice = allSongIds.subList(start, end)
+                    val tracks = fetchSongDetailsChunked(slice)
+
+                    val items = tracks.map { it.toShelf() }
+                    val nextContinuation =
+                        if (end < allSongIds.size) (page + 1).toString() else null
+
+                    Page(items, nextContinuation)
+                }
+            }.toFeedData()
+        }
+    }
 
     private suspend fun fetchSongDetailsChunked(ids: List<String>): List<Track> {
         val result = mutableListOf<Track>()
-        ids.chunked(BATCH_SIZE).forEach { chunk ->
+        ids.chunked(DETAIL_BATCH_SIZE).forEach { chunk ->
             try {
                 val resp = api.library.getDetails(chunk, "song", chunk.size)
                 result.addAll(parser.track.parseSongDetails(resp))
@@ -208,6 +236,9 @@ class LibraryFeedClientImpl(
         }
         return result
     }
+
+    // ===== Chunked fetchers =====
+
 
     private suspend fun fetchAlbumDetailsChunked(ids: List<String>): List<Album> {
         val result = mutableListOf<Album>()
@@ -250,5 +281,8 @@ class LibraryFeedClientImpl(
 
     companion object {
         private const val BATCH_SIZE = 50
+        private const val SHELF_PREVIEW_SIZE = 20
+        private const val PAGE_SIZE = 20
+        private const val DETAIL_BATCH_SIZE = 20
     }
 }

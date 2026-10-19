@@ -46,7 +46,7 @@ class LoginClientImpl : LoginClient.WebView {
 
     private suspend fun verifyLogin(cookie: String): User? {
         return try {
-            val response = SaavnDependencies.api.home.getConfigDetailsCSR(cookie)
+            val response = SaavnDependencies.api.auth.getConfigDetailsCSR(cookie)
             val userState = response["user_state"]?.jsonObject
             if (userState == null) {
                 Logger.d("LoginClient", "verifyLogin: no user_state")
