@@ -10,6 +10,7 @@ import dev.brahmkshatriya.echo.common.models.Tab
 import dev.brahmkshatriya.echo.common.models.Track
 import dev.brahmkshatriya.echo.common.models.Album
 import dev.brahmkshatriya.echo.common.models.Artist
+import dev.brahmkshatriya.echo.common.models.EchoMediaItem
 import dev.brahmkshatriya.echo.common.models.Playlist
 import dev.brahmkshatriya.echo.common.settings.Settings
 import dev.brahmkshatriya.echo.common.helpers.ClientException
@@ -21,7 +22,6 @@ import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.SaavnDependencies
 import dev.brahmkshatriya.echo.extension.storage.*
 import dev.brahmkshatriya.echo.extension.utils.Logger
-import dev.brahmkshatriya.echo.extension.utils.runSafe
 
 class LibraryFeedClientImpl(
     private val api: JioSaavnApi,
@@ -136,97 +136,102 @@ class LibraryFeedClientImpl(
         val library = api.library.getAll()
 
         // ---- Liked Songs ----
-        val songIds = parser.library.parseSongIds(library).asReversed() // newest first
-        if (songIds.isNotEmpty()) {
-            val preview = fetchSongDetailsChunked(songIds.take(SHELF_PREVIEW_SIZE))
-            if (preview.isNotEmpty()) {
-                shelves.add(
-                    Shelf.Lists.Items(
-                        id = "saavn_liked_tracks",
-                        title = "Liked Songs",
-                        list = preview,
-                        subtitle = "${songIds.size} tracks",
-                        more = createLikedSongsMore(songIds),
-                    )
-                )
-            }
-        }
+        val songIds = parser.library.parseSongIds(library).asReversed()
+        paginatedShelf(
+            shelfId = "saavn_liked_tracks",
+            shelfTitle = "Liked Songs",
+            ids = songIds,
+            fetcher = { fetchSongDetailsChunked(it) },
+        )?.let(shelves::add)
 
         // ---- Liked Albums ----
-        val albumIds = parser.library.parseAlbumIds(library)
-        if (albumIds.isNotEmpty()) {
-            val albums = fetchAlbumDetailsChunked(albumIds)
-            if (albums.isNotEmpty()) {
-                shelves.add(Shelf.Lists.Items(
-                    id = "saavn_liked_albums",
-                    title = "Liked Albums",
-                    list = albums,
-                    subtitle = "${albums.size} albums"
-                ))
-            }
-        }
+        val albumIds = parser.library.parseAlbumIds(library).asReversed()
+        paginatedShelf(
+            shelfId = "saavn_liked_albums",
+            shelfTitle = "Liked Albums",
+            ids = albumIds,
+            fetcher = { fetchAlbumDetailsChunked(it) },
+        )?.let(shelves::add)
 
         // ---- Followed Artists ----
-        val artistIds = parser.library.parseArtistIds(library)
-        if (artistIds.isNotEmpty()) {
-            val artists = fetchArtistDetailsChunked(artistIds)
-            if (artists.isNotEmpty()) {
-                shelves.add(Shelf.Lists.Items(
-                    id = "saavn_followed_artists",
-                    title = "Followed Artists",
-                    list = artists,
-                    subtitle = "${artists.size} artists"
-                ))
-            }
-        }
+        val artistIds = parser.library.parseArtistIds(library).asReversed()
+        paginatedShelf(
+            shelfId = "saavn_followed_artists",
+            shelfTitle = "Followed Artists",
+            ids = artistIds,
+            fetcher = { fetchArtistDetailsChunked(it) },
+        )?.let(shelves::add)
 
         // ---- Playlists ----
-        val playlistEntries = parser.library.parsePlaylistEntries(library)
-        if (playlistEntries.isNotEmpty()) {
-            val playlists = fetchPlaylistDetailsChunked(playlistEntries.map { it.id })
-            if (playlists.isNotEmpty()) {
-                shelves.add(Shelf.Lists.Items(
-                    id = "saavn_playlists",
-                    title = "Playlists",
-                    list = playlists,
-                    subtitle = "${playlists.size} playlists"
-                ))
-            }
-        }
+        val playlistEntries = parser.library.parsePlaylistEntries(library).asReversed()
+        val playlistIds = playlistEntries.map { it.id }
+        paginatedShelf(
+            shelfId = "saavn_playlists",
+            shelfTitle = "Playlists",
+            ids = playlistIds,
+            fetcher = { fetchPlaylistDetailsChunked(it) },
+        )?.let(shelves::add)
 
         return shelves
     }
 
-    private fun createLikedSongsMore(allSongIds: List<String>): Feed<Shelf> {
-        return Feed(emptyList()) { _ ->
+    private suspend fun <T : EchoMediaItem> paginatedShelf(
+        shelfId: String,
+        shelfTitle: String,
+        ids: List<String>,
+        previewSize: Int = BATCH_SIZE,
+        pageSize: Int = BATCH_SIZE,
+        fetcher: suspend (List<String>) -> List<T>,
+    ): Shelf? {
+        if (ids.isEmpty()) return null
+
+        val preview = try {
+            fetcher(ids.take(previewSize))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logger.e("LibraryFeed", "Failed to load preview for $shelfId", e)
+            return null
+        }
+        if (preview.isEmpty()) return null
+
+        val more = Feed(emptyList()) { _ ->
             PagedData.Continuous<Shelf> { continuation ->
                 val page = continuation?.toIntOrNull() ?: 1
+                val start = (page - 1) * pageSize
+                val end = minOf(start + pageSize, ids.size)
 
-                runSafe("LibraryFeed", Page(emptyList<Shelf>(), null)) {
-                    val start = (page - 1) * PAGE_SIZE
-                    val end = minOf(start + PAGE_SIZE, allSongIds.size)
-
-                    if (start >= allSongIds.size) {
-                        // No more items — return empty page with null continuation
-                        return@runSafe Page(emptyList<Shelf>(), null)
+                if (start >= ids.size) {
+                    Page(emptyList<Shelf>(), null)
+                } else {
+                    try {
+                        val items = fetcher(ids.subList(start, end)).map { it.toShelf() }
+                        val next = if (end < ids.size) (page + 1).toString() else null
+                        Page(items, next)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Logger.e("LibraryFeed", "Failed to load page $page for $shelfId", e)
+                        Page(emptyList<Shelf>(), null)
                     }
-
-                    val slice = allSongIds.subList(start, end)
-                    val tracks = fetchSongDetailsChunked(slice)
-
-                    val items = tracks.map { it.toShelf() }
-                    val nextContinuation =
-                        if (end < allSongIds.size) (page + 1).toString() else null
-
-                    Page(items, nextContinuation)
                 }
             }.toFeedData()
         }
+
+        return Shelf.Lists.Items(
+            id = shelfId,
+            title = shelfTitle,
+            list = preview,
+            subtitle = "${ids.size} items",
+            more = if (ids.size > previewSize) more else null,
+        )
     }
+
+    // ===== Chunked fetchers =====
 
     private suspend fun fetchSongDetailsChunked(ids: List<String>): List<Track> {
         val result = mutableListOf<Track>()
-        ids.chunked(DETAIL_BATCH_SIZE).forEach { chunk ->
+        ids.chunked(BATCH_SIZE).forEach { chunk ->
             try {
                 val resp = api.library.getDetails(chunk, "song", chunk.size)
                 result.addAll(parser.track.parseSongDetails(resp))
@@ -236,9 +241,6 @@ class LibraryFeedClientImpl(
         }
         return result
     }
-
-    // ===== Chunked fetchers =====
-
 
     private suspend fun fetchAlbumDetailsChunked(ids: List<String>): List<Album> {
         val result = mutableListOf<Album>()
@@ -281,8 +283,5 @@ class LibraryFeedClientImpl(
 
     companion object {
         private const val BATCH_SIZE = 50
-        private const val SHELF_PREVIEW_SIZE = 20
-        private const val PAGE_SIZE = 20
-        private const val DETAIL_BATCH_SIZE = 20
     }
 }
