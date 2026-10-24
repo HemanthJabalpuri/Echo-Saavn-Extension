@@ -63,7 +63,7 @@ class SaavnExtension : ExtensionClient,
     RadioClient by RadioClientImpl(SaavnDependencies.radioService),
     TrackerClient,
     LikeClient by LikeClientImpl(),
-    ShareClient by ShareClientImpl(),
+    ShareClient by ShareClientImpl(SaavnDependencies.api, SaavnDependencies.parser, SaavnDependencies.albumService),
     LoginClient.WebView by LoginClientImpl() {
 
     private lateinit var settings: Settings
