@@ -38,6 +38,8 @@ object SaavnDependencies {
 
     fun isAutoRadioEnabled(): Boolean =
         settings?.getBoolean(SettingsKeys.AUTO_RADIO_ENABLED) ?: true
+    fun isRichShareEnabled(): Boolean =
+        settings?.getBoolean(SettingsKeys.RICH_SHARE_ENABLED) ?: false
 
     val inflightTrackLoads = ConcurrentHashMap<String, Deferred<Track>>()
 
@@ -70,7 +72,7 @@ class SaavnExtension : ExtensionClient,
         return listOf(
             SettingMultipleChoice(
                 title = "Default Home Languages",
-                key = "default_home_languages",
+                key = SettingsKeys.DEFAULT_HOME_LANGUAGES,
                 summary = "Languages for the Default tab",
                 entryTitles = LANGUAGES,
                 entryValues = LANGUAGES.map { it.lowercase() },
@@ -78,9 +80,15 @@ class SaavnExtension : ExtensionClient,
             ),
             SettingSwitch(
                 title = "Auto-Radio",
-                key = "auto_radio_enabled",
+                key = SettingsKeys.AUTO_RADIO_ENABLED,
                 summary = "Automatically play similar tracks when the queue ends",
                 defaultValue = true
+            ),
+            SettingSwitch(
+                title = "Rich Share",
+                key = SettingsKeys.RICH_SHARE_ENABLED,
+                summary = "Share formatted details instead of just the link",
+                defaultValue = false
             )
         )
     }

@@ -93,7 +93,7 @@ class LoginClientImpl : LoginClient.WebView {
         } else {
             // Restore session from user extras (e.g., on app restart)
             val cookie = user.extras["cookie"]
-            Logger.d("LoginClient", "setLoginUser: ${user.name}, cookie=${cookie}")
+            Logger.d("LoginClient", "setLoginUser: ${user.name}, cookie=${cookie != null}")
             SaavnDependencies.sessionCookie = cookie
         }
     }
