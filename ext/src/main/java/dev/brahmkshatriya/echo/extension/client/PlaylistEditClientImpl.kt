@@ -13,6 +13,7 @@ import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.SaavnDependencies
 import dev.brahmkshatriya.echo.extension.storage.LocalPlaylistStore
 import dev.brahmkshatriya.echo.extension.storage.LocalPlaylistTracksStore
+import dev.brahmkshatriya.echo.extension.storage.LocalLikedTracksStore
 import dev.brahmkshatriya.echo.extension.utils.Logger
 import dev.brahmkshatriya.echo.extension.utils.getToken
 import dev.brahmkshatriya.echo.extension.utils.Prefixes
@@ -33,6 +34,16 @@ class PlaylistEditClientImpl(
 
     // ===== LOAD PLAYLIST =====
     override suspend fun loadPlaylist(playlist: Playlist): Playlist {
+        // Liked playlist — synthetic, read-only
+        if (Prefixes.isLikedPlaylist(playlist.id)) {
+            val count = settings?.let { LocalLikedTracksStore.getAll(it).size.toLong() } ?: 0L
+            return playlist.copy(
+                title = "Liked Songs",
+                isEditable = false,
+                trackCount = count,
+            )
+        }
+
         // Local playlist
         if (Prefixes.isLocal(playlist.id)) {
             return playlist.copy(isEditable = true)
@@ -60,6 +71,12 @@ class PlaylistEditClientImpl(
 
     // ===== LOAD TRACKS =====
     override suspend fun loadTracks(playlist: Playlist): Feed<Track> {
+        // Liked playlist
+        if (Prefixes.isLikedPlaylist(playlist.id)) {
+            val settings = settings ?: return emptyList<Track>().toFeed() as Feed<Track>
+            return LocalLikedTracksStore.getAll(settings).toFeed() as Feed<Track>
+        }
+
         // Local playlist
         if (Prefixes.isLocal(playlist.id)) {
             val settings = settings ?: return emptyList<Track>().toFeed() as Feed<Track>
@@ -174,8 +191,8 @@ class PlaylistEditClientImpl(
 
     override suspend fun listEditablePlaylists(track: Track?): List<Pair<Playlist, Boolean>> {
         val settings = settings ?: return emptyList()
-        val playlists = LocalPlaylistStore.getAll(settings)
-        Logger.d("PlaylistEdit", "listEditablePlaylists: ${playlists.size} playlists")
+        val playlists = LocalPlaylistStore.getAll(settings).filter { it.isEditable }
+        Logger.d("PlaylistEdit", "listEditablePlaylists: ${playlists.size} editable playlists")
 
         return playlists.map { playlist ->
             val isInPlaylist = track != null &&

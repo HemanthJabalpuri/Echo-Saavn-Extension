@@ -22,6 +22,7 @@ import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.SaavnDependencies
 import dev.brahmkshatriya.echo.extension.storage.*
 import dev.brahmkshatriya.echo.extension.utils.Logger
+import dev.brahmkshatriya.echo.extension.utils.Prefixes
 
 class LibraryFeedClientImpl(
     private val api: JioSaavnApi,
@@ -52,6 +53,27 @@ class LibraryFeedClientImpl(
         return shelves.toFeedData()
     }
 
+    private fun ensureLikedPlaylistExists(settings: Settings) {
+        val existing = LocalPlaylistStore.getAll(settings)
+        if (existing.none { it.id == Prefixes.LIKED_PLAYLIST_ID }) {
+            LocalPlaylistStore.add(settings, Playlist(
+                id = Prefixes.LIKED_PLAYLIST_ID,
+                title = "Liked Songs",
+                isEditable = false,
+                isPrivate = false,
+                description = null,
+                creationDate = null,
+                cover = null,
+                authors = emptyList(),
+                trackCount = 0,
+                duration = null,
+                background = null,
+                subtitle = null,
+                extras = emptyMap(),
+            ))
+        }
+    }
+
     private fun buildLocalShelves(settings: Settings): List<Shelf> {
         val shelves = mutableListOf<Shelf>()
 
@@ -65,6 +87,7 @@ class LibraryFeedClientImpl(
             ))
         }
 
+        ensureLikedPlaylistExists(settings)
         val myPlaylists = LocalPlaylistStore.getAll(settings)
         if (myPlaylists.isNotEmpty()) {
             shelves.add(Shelf.Lists.Items(

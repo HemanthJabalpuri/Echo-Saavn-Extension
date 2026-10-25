@@ -1,7 +1,6 @@
 package dev.brahmkshatriya.echo.extension.client
 
 import dev.brahmkshatriya.echo.common.clients.ShareClient
-import dev.brahmkshatriya.echo.common.models.Album
 import dev.brahmkshatriya.echo.common.models.EchoMediaItem
 import dev.brahmkshatriya.echo.common.models.Playlist
 import dev.brahmkshatriya.echo.common.models.Track
@@ -9,8 +8,8 @@ import dev.brahmkshatriya.echo.common.models.Track
 import dev.brahmkshatriya.echo.extension.JioSaavnApi
 import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.SaavnDependencies
-import dev.brahmkshatriya.echo.extension.service.AlbumService
 import dev.brahmkshatriya.echo.extension.storage.LocalPlaylistTracksStore
+import dev.brahmkshatriya.echo.extension.storage.LocalLikedTracksStore
 import dev.brahmkshatriya.echo.extension.utils.Extras
 import dev.brahmkshatriya.echo.extension.utils.Logger
 import dev.brahmkshatriya.echo.extension.utils.Prefixes
@@ -19,7 +18,6 @@ import dev.brahmkshatriya.echo.extension.utils.getToken
 class ShareClientImpl(
     private val api: JioSaavnApi,
     private val parser: JioSaavnParser,
-    private val albumService: AlbumService,
 ) : ShareClient {
 
     override suspend fun onShare(item: EchoMediaItem): String {
@@ -30,99 +28,28 @@ class ShareClientImpl(
         }
 
         return when (item) {
-            is Track -> formatTrack(item, url)
-            is Album -> formatAlbum(item, url, albumService.getCachedTracks(item.id))
             is Playlist -> {
-                val tracks = if (Prefixes.isLocal(item.id)) {
-                    SaavnDependencies.settings
-                        ?.let { LocalPlaylistTracksStore.getTracks(it, item.id) }
-                        ?: emptyList()
-                } else {
-                    fetchAllPlaylistTracks(item)
-                }
-                formatPlaylist(item, url, tracks)
+                val tracks = fetchPlaylistTracks(item)
+                buildPlaylistCsv(item, tracks)
             }
             else -> url.ifBlank { "JioSaavn" }
         }
     }
 
-    // ===== TRACK =====
+    // ===== Track fetching =====
 
-    private fun formatTrack(track: Track, url: String): String = buildString {
-        append(track.title)
-        track.artists.firstOrNull()?.name?.takeIf { it.isNotBlank() }?.let {
-            append(" — ").append(it)
-        }
-        track.album?.title?.takeIf { it.isNotBlank() }?.let {
-            append("\nAlbum: ").append(it)
-        }
-        if (url.isNotBlank()) append("\n").append(url)
-    }
+    private suspend fun fetchPlaylistTracks(playlist: Playlist): List<Track> {
 
-    // ===== ALBUM (cache-only) =====
-
-    private fun formatAlbum(
-        album: Album,
-        url: String,
-        tracks: List<Track>?,
-    ): String = buildString {
-        append(album.title)
-        album.label?.takeIf { it.isNotBlank() }?.let {
-            append("\nLabel: ").append(it)
-        }
-        if (!tracks.isNullOrEmpty()) {
-            append("\n")
-            tracks.forEachIndexed { i, t ->
-                append("\n${i + 1}. ").append(t.title)
-                t.artists.firstOrNull()?.name?.takeIf { it.isNotBlank() }?.let {
-                    append(" — ").append(it)
-                }
-            }
-        }
-        if (url.isNotBlank()) append("\n\n").append(url)
-    }
-
-    // ===== PLAYLIST (fetch-on-share or local) =====
-
-    private fun formatPlaylist(
-        playlist: Playlist,
-        url: String,
-        tracks: List<Track>,
-    ): String = buildString {
-        append(playlist.title)
-        buildPlaylistSubtitle(playlist, tracks.size)?.let {
-            append("\n").append(it)
+        if (Prefixes.isLikedPlaylist(playlist.id)) {
+            val settings = SaavnDependencies.settings ?: return emptyList()
+            return LocalLikedTracksStore.getAll(settings)
         }
 
-        if (tracks.isNotEmpty()) {
-            append("\n")
-            tracks.forEachIndexed { i, t ->
-                append("\n${i + 1}. ").append(t.title)
-                t.artists.firstOrNull()?.name?.takeIf { it.isNotBlank() }?.let {
-                    append(" — ").append(it)
-                }
-            }
+        if (Prefixes.isLocal(playlist.id)) {
+            val settings = SaavnDependencies.settings ?: return emptyList()
+            return LocalPlaylistTracksStore.getTracks(settings, playlist.id)
         }
 
-        if (url.isNotBlank()) append("\n\n").append(url)
-    }
-
-    private fun buildPlaylistSubtitle(playlist: Playlist, fetchedCount: Int): String? {
-        val parts = mutableListOf<String>()
-        playlist.authors.firstOrNull()?.name?.takeIf { it.isNotBlank() }
-            ?.let { parts.add("By $it") }
-        playlist.trackCount?.takeIf { it > 0 }?.let { expected ->
-            parts.add(
-                if (fetchedCount >= expected) "$expected tracks"
-                else "$fetchedCount of $expected tracks"
-            )
-        }
-        return parts.joinToString(" · ").ifBlank { null }
-    }
-
-    // ===== Playlist paginated fetch =====
-
-    private suspend fun fetchAllPlaylistTracks(playlist: Playlist): List<Track> {
         val token = playlist.getToken()
         if (token.isBlank()) return emptyList()
 
@@ -144,13 +71,83 @@ class ShareClientImpl(
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            Logger.e("ShareClient", "Failed to fetch full playlist ${playlist.id}", e)
+            Logger.e("ShareClient", "Failed to fetch playlist ${playlist.id}", e)
         }
 
         return tracks
     }
 
+    // ===== CSV building =====
+
+    private fun buildPlaylistCsv(playlist: Playlist, tracks: List<Track>): String {
+        val header = CSV_COLUMNS
+        return buildString {
+            append('\uFEFF')
+            appendCsvRow(CSV_COLUMNS.map { it.header })
+            tracks.forEach { track ->
+                appendCsvRow(CSV_COLUMNS.map { it.extractor(track) })
+            }
+        }
+    }
+
+    private fun StringBuilder.appendCsvRow(fields: List<String>) {
+        fields.forEachIndexed { i, field ->
+            if (i > 0) append(',')
+            append(encodeCsvField(field))
+        }
+        append("\r\n")
+    }
+
+    private fun encodeCsvField(value: String): String {
+        val sanitized = value
+            .replace("\u0000", "")
+            .replace("\r\n", " ")
+            .replace("\r", " ")
+            .replace("\n", " ")
+            .trim()
+            .let(::escapeFormulaPrefix)
+
+        return "\"${sanitized.replace("\"", "\"\"")}\""
+    }
+
+    private fun escapeFormulaPrefix(value: String): String =
+        if (value.isNotEmpty() && value[0] in FORMULA_TRIGGERS) "'$value"
+        else value
+
+    // ===== Column definitions =====
+
+    private data class CsvColumn(
+        val header: String,
+        val extractor: (Track) -> String,
+    )
+
     companion object {
         private const val PAGE_SIZE = 100
+        private val FORMULA_TRIGGERS = charArrayOf('=', '+', '-', '@', '\t')
+
+        private val CSV_COLUMNS = listOf(
+            CsvColumn("Title") { it.title },
+            CsvColumn("Primary Artists") {
+                it.artists.joinToString("; ") { a -> a.name }
+                    .ifBlank { it.extras["artists_raw"].orEmpty() }
+            },
+            CsvColumn("Album") {
+                it.album?.title.orEmpty()
+                    .ifBlank { it.extras["album_raw"].orEmpty() }
+            },
+            CsvColumn("Duration (s)") {
+                it.duration?.let { ms -> (ms / 1000).toString() }.orEmpty()
+            },
+            CsvColumn("Release Date") { it.extras["release_date_raw"].orEmpty() },
+            CsvColumn("Year") { it.extras["year"].orEmpty() },
+            CsvColumn("Label") {
+                it.album?.label.orEmpty()
+                    .ifBlank { it.extras["label_raw"].orEmpty() }
+            },
+            CsvColumn("Composer") { it.extras["composer"].orEmpty() },
+            CsvColumn("Explicit") { it.isExplicit.toString() },
+            CsvColumn("JioSaavn ID") { it.id },
+            CsvColumn("JioSaavn URL") { it.extras[Extras.PERMA_URL].orEmpty() },
+        )
     }
 }

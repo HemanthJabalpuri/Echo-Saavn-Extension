@@ -32,6 +32,9 @@ object Prefixes {
     fun newLocalId(): String = "$LOCAL${System.currentTimeMillis()}"
     
     fun isLocal(id: String): Boolean = id.startsWith(LOCAL)
+
+    const val LIKED_PLAYLIST_ID = "liked_songs"
+    fun isLikedPlaylist(id: String) = id == LIKED_PLAYLIST_ID
 }
 
 object SettingsKeys {

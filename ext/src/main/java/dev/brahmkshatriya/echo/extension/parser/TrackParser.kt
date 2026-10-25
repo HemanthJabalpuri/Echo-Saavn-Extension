@@ -72,6 +72,9 @@ class TrackParser : BaseParser() {
                 Extras.PERMA_URL to (obj["perma_url"]?.jsonPrimitive?.content ?: ""),
                 Extras.OTHER_ARTISTS to (artistMap?.toString() ?: "{}"),
                 "hasLyrics" to (moreInfo?.get("has_lyrics")?.jsonPrimitive?.content ?: "false"),
+                "composer" to (moreInfo?.get("music")?.jsonPrimitive?.content ?: ""),
+                "year" to (obj["year"]?.jsonPrimitive?.content ?: ""),
+                "release_date_raw" to (moreInfo?.get("release_date")?.jsonPrimitive?.content ?: ""),
             ),
             streamables = streamables
         )
