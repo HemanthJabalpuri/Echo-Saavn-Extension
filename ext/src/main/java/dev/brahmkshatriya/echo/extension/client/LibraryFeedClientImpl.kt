@@ -92,7 +92,7 @@ class LibraryFeedClientImpl(
         if (tracks.isNotEmpty()) {
             shelves.add(Shelf.Lists.Items(
                 id = "liked_tracks",
-                title = "Liked Songs",
+                title = "Saved Songs",
                 list = tracks,
                 subtitle = "${tracks.size} tracks"
             ))
@@ -102,7 +102,7 @@ class LibraryFeedClientImpl(
         if (albums.isNotEmpty()) {
             shelves.add(Shelf.Lists.Items(
                 id = "liked_albums",
-                title = "Liked Albums",
+                title = "Saved Albums",
                 list = albums,
                 subtitle = "${albums.size} albums"
             ))
@@ -112,7 +112,7 @@ class LibraryFeedClientImpl(
         if (artists.isNotEmpty()) {
             shelves.add(Shelf.Lists.Items(
                 id = "liked_artists",
-                title = "Liked Artists",
+                title = "Saved Artists",
                 list = artists,
                 subtitle = "${artists.size} artists"
             ))
@@ -122,7 +122,7 @@ class LibraryFeedClientImpl(
         if (playlists.isNotEmpty()) {
             shelves.add(Shelf.Lists.Items(
                 id = "liked_playlists",
-                title = "Liked Playlists",
+                title = "Saved Playlists",
                 list = playlists,
                 subtitle = "${playlists.size} playlists"
             ))

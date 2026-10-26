@@ -37,9 +37,4 @@ class HomeApi : BaseApi() {
         )
     )
 
-    suspend fun getConfigDetailsCSR(cookie: String): JsonObject = executeRequest(
-        call = "webapi.getConfigDetailsCSR",
-        headers = mapOf("Cookie" to cookie)
-    )
-
 }

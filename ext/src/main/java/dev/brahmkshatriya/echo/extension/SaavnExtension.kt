@@ -63,10 +63,11 @@ class SaavnExtension : ExtensionClient,
     PlaylistEditClient by PlaylistEditClientImpl(SaavnDependencies.api, SaavnDependencies.parser),
     RadioClient by RadioClientImpl(SaavnDependencies.radioService),
     TrackerClient,
-    LikeClient by LikeClientImpl(),
+    SaveClient by SaveClientImpl(),
     ShareClient by ShareClientImpl(SaavnDependencies.api, SaavnDependencies.parser),
     LoginClient.WebView by LoginClientImpl(),
-    FollowClient by FollowClientImpl(SaavnDependencies.api) {
+    FollowClient by FollowClientImpl(SaavnDependencies.api),
+    LikeClient by LikeClientImpl() {
 
     private lateinit var settings: Settings
 

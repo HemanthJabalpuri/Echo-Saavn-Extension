@@ -40,7 +40,7 @@ class PlaylistEditClientImpl(
         if (Prefixes.isLikedPlaylist(playlist.id)) {
             val count = settings?.let { LocalLikedTracksStore.getAll(it).size.toLong() } ?: 0L
             return playlist.copy(
-                title = "Liked Songs",
+                title = "Saved Songs",
                 isEditable = false,
                 trackCount = count,
             )
