@@ -47,7 +47,6 @@ open class BaseParser {
             ).toImageHolder(),
             subtitle = obj["subtitle"]?.jsonPrimitive?.content
                 ?: obj["role"]?.jsonPrimitive?.content,
-            isLikeable = true,
             isRadioSupported = false,
             extras = mapOf(
                 Extras.PERMA_URL to permaUrl,

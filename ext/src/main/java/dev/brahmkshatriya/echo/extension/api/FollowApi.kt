@@ -4,7 +4,7 @@ import kotlinx.serialization.json.JsonObject
 
 class FollowApi : AuthenticatedBaseApi() {
 
-    suspend fun follow(entityId: String, entityType: String = "artist"): JsonObject =
+    suspend fun follow(entityId: String, entityType: String): JsonObject =
         executeAuthed(
             call = "social.follow",
             params = mapOf(
@@ -13,7 +13,7 @@ class FollowApi : AuthenticatedBaseApi() {
             ),
         )
 
-    suspend fun unfollow(entityId: String, entityType: String = "artist"): JsonObject =
+    suspend fun unfollow(entityId: String, entityType: String): JsonObject =
         executeAuthed(
             call = "social.unfollow",
             params = mapOf(
