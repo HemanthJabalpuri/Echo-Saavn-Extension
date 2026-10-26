@@ -22,7 +22,6 @@ import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.SaavnDependencies
 import dev.brahmkshatriya.echo.extension.storage.*
 import dev.brahmkshatriya.echo.extension.utils.Logger
-import dev.brahmkshatriya.echo.extension.utils.Prefixes
 
 class LibraryFeedClientImpl(
     private val api: JioSaavnApi,
@@ -53,12 +52,12 @@ class LibraryFeedClientImpl(
         return shelves.toFeedData()
     }
 
-    private fun ensureLikedPlaylistExists(settings: Settings) {
+    private fun ensureSavedTracksPlaylistExists(settings: Settings) {
         val existing = LocalPlaylistStore.getAll(settings)
-        if (existing.none { it.id == Prefixes.LIKED_PLAYLIST_ID }) {
+        if (existing.none { it.id == Prefixes.SAVED_TRACKS_PLAYLIST_ID }) {
             LocalPlaylistStore.add(settings, Playlist(
-                id = Prefixes.LIKED_PLAYLIST_ID,
-                title = "Liked Songs",
+                id = Prefixes.SAVED_TRACKS_PLAYLIST_ID,
+                title = "Saved Songs",
                 isEditable = false,
             ))
         }
@@ -77,7 +76,7 @@ class LibraryFeedClientImpl(
             ))
         }
 
-        ensureLikedPlaylistExists(settings)
+        ensureSavedTracksPlaylistExists(settings)
         val myPlaylists = LocalPlaylistStore.getAll(settings)
         if (myPlaylists.isNotEmpty()) {
             shelves.add(Shelf.Lists.Items(
@@ -88,40 +87,40 @@ class LibraryFeedClientImpl(
             ))
         }
 
-        val tracks = LocalLikedTracksStore.getAll(settings)
+        val tracks = LocalSavedTracksStore.getAll(settings)
         if (tracks.isNotEmpty()) {
             shelves.add(Shelf.Lists.Items(
-                id = "liked_tracks",
+                id = "Saved_tracks",
                 title = "Saved Songs",
                 list = tracks,
                 subtitle = "${tracks.size} tracks"
             ))
         }
 
-        val albums = LocalLikedAlbumsStore.getAll(settings)
+        val albums = LocalSavedAlbumsStore.getAll(settings)
         if (albums.isNotEmpty()) {
             shelves.add(Shelf.Lists.Items(
-                id = "liked_albums",
+                id = "Saved_albums",
                 title = "Saved Albums",
                 list = albums,
                 subtitle = "${albums.size} albums"
             ))
         }
 
-        val artists = LocalLikedArtistsStore.getAll(settings)
+        val artists = LocalSavedArtistsStore.getAll(settings)
         if (artists.isNotEmpty()) {
             shelves.add(Shelf.Lists.Items(
-                id = "liked_artists",
+                id = "Saved_artists",
                 title = "Saved Artists",
                 list = artists,
                 subtitle = "${artists.size} artists"
             ))
         }
 
-        val playlists = LocalLikedPlaylistsStore.getAll(settings)
+        val playlists = LocalSavedPlaylistsStore.getAll(settings)
         if (playlists.isNotEmpty()) {
             shelves.add(Shelf.Lists.Items(
-                id = "liked_playlists",
+                id = "Saved_playlists",
                 title = "Saved Playlists",
                 list = playlists,
                 subtitle = "${playlists.size} playlists"

@@ -9,10 +9,10 @@ import dev.brahmkshatriya.echo.extension.JioSaavnApi
 import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.SaavnDependencies
 import dev.brahmkshatriya.echo.extension.storage.LocalPlaylistTracksStore
-import dev.brahmkshatriya.echo.extension.storage.LocalLikedTracksStore
+import dev.brahmkshatriya.echo.extension.storage.LocalSavedTracksStore
+import dev.brahmkshatriya.echo.extension.storage.Prefixes
 import dev.brahmkshatriya.echo.extension.utils.Extras
 import dev.brahmkshatriya.echo.extension.utils.Logger
-import dev.brahmkshatriya.echo.extension.utils.Prefixes
 import dev.brahmkshatriya.echo.extension.utils.getToken
 
 class ShareClientImpl(
@@ -40,9 +40,9 @@ class ShareClientImpl(
 
     private suspend fun fetchPlaylistTracks(playlist: Playlist): List<Track> {
 
-        if (Prefixes.isLikedPlaylist(playlist.id)) {
+        if (Prefixes.isSavedTracksPlaylist(playlist.id)) {
             val settings = SaavnDependencies.settings ?: return emptyList()
-            return LocalLikedTracksStore.getAll(settings)
+            return LocalSavedTracksStore.getAll(settings)
         }
 
         if (Prefixes.isLocal(playlist.id)) {

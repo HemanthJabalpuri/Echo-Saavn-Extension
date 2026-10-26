@@ -25,6 +25,7 @@ object LocalPlaylistStore : LocalStore<Playlist>() {
             subtitle = common.subtitle,
             cover = common.cover,
             isEditable = obj["isEditable"]?.jsonPrimitive?.booleanOrNull ?: true,
+            isSaveable = !Prefixes.isSavedTracksPlaylist(common.id),
             isPrivate = obj["isPrivate"]?.jsonPrimitive?.booleanOrNull ?: false,
             description = obj["description"]?.jsonPrimitive?.content,
             creationDate = obj["creationDate"]?.jsonPrimitive?.longOrNull?.let { Date(it) },

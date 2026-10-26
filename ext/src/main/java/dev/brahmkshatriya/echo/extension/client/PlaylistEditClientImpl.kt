@@ -15,10 +15,10 @@ import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.SaavnDependencies
 import dev.brahmkshatriya.echo.extension.storage.LocalPlaylistStore
 import dev.brahmkshatriya.echo.extension.storage.LocalPlaylistTracksStore
-import dev.brahmkshatriya.echo.extension.storage.LocalLikedTracksStore
+import dev.brahmkshatriya.echo.extension.storage.LocalSavedTracksStore
+import dev.brahmkshatriya.echo.extension.storage.Prefixes
 import dev.brahmkshatriya.echo.extension.utils.Logger
 import dev.brahmkshatriya.echo.extension.utils.getToken
-import dev.brahmkshatriya.echo.extension.utils.Prefixes
 
 class PlaylistEditClientImpl(
     private val api: JioSaavnApi,
@@ -36,9 +36,9 @@ class PlaylistEditClientImpl(
 
     // ===== LOAD PLAYLIST =====
     override suspend fun loadPlaylist(playlist: Playlist): Playlist {
-        // Liked playlist — synthetic, read-only
-        if (Prefixes.isLikedPlaylist(playlist.id)) {
-            val count = settings?.let { LocalLikedTracksStore.getAll(it).size.toLong() } ?: 0L
+        // Saved Tracks playlist — synthetic, read-only
+        if (Prefixes.isSavedTracksPlaylist(playlist.id)) {
+            val count = settings?.let { LocalSavedTracksStore.getAll(it).size.toLong() } ?: 0L
             return playlist.copy(
                 title = "Saved Songs",
                 isEditable = false,
@@ -90,10 +90,10 @@ class PlaylistEditClientImpl(
 
     // ===== LOAD TRACKS =====
     override suspend fun loadTracks(playlist: Playlist): Feed<Track> {
-        // Liked playlist
-        if (Prefixes.isLikedPlaylist(playlist.id)) {
+        // Saved tracks playlist
+        if (Prefixes.isSavedTracksPlaylist(playlist.id)) {
             val settings = settings ?: return emptyList<Track>().toFeed() as Feed<Track>
-            return LocalLikedTracksStore.getAll(settings).toFeed() as Feed<Track>
+            return LocalSavedTracksStore.getAll(settings).toFeed() as Feed<Track>
         }
 
         // Local playlist

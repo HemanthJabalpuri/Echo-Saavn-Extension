@@ -10,14 +10,14 @@ class SaveClientImpl : SaveClient {
     override suspend fun saveToLibrary(item: EchoMediaItem, shouldSave: Boolean) {
         val settings = SaavnDependencies.settings ?: return
         when (item) {
-            is Track -> if (shouldSave) LocalLikedTracksStore.add(settings, item)
-                        else LocalLikedTracksStore.remove(settings, item.id)
-            is Album -> if (shouldSave) LocalLikedAlbumsStore.add(settings, item)
-                        else LocalLikedAlbumsStore.remove(settings, item.id)
-            is Artist -> if (shouldSave) LocalLikedArtistsStore.add(settings, item)
-                         else LocalLikedArtistsStore.remove(settings, item.id)
-            is Playlist -> if (shouldSave) LocalLikedPlaylistsStore.add(settings, item)
-                           else LocalLikedPlaylistsStore.remove(settings, item.id)
+            is Track -> if (shouldSave) LocalSavedTracksStore.add(settings, item)
+                        else LocalSavedTracksStore.remove(settings, item.id)
+            is Album -> if (shouldSave) LocalSavedAlbumsStore.add(settings, item)
+                        else LocalSavedAlbumsStore.remove(settings, item.id)
+            is Artist -> if (shouldSave) LocalSavedArtistsStore.add(settings, item)
+                         else LocalSavedArtistsStore.remove(settings, item.id)
+            is Playlist -> if (shouldSave) LocalSavedPlaylistsStore.add(settings, item)
+                           else LocalSavedPlaylistsStore.remove(settings, item.id)
             else -> return
         }
     }
@@ -25,10 +25,10 @@ class SaveClientImpl : SaveClient {
     override suspend fun isItemSaved(item: EchoMediaItem): Boolean {
         val settings = SaavnDependencies.settings ?: return false
         return when (item) {
-            is Track -> LocalLikedTracksStore.contains(settings, item.id)
-            is Album -> LocalLikedAlbumsStore.contains(settings, item.id)
-            is Artist -> LocalLikedArtistsStore.contains(settings, item.id)
-            is Playlist -> LocalLikedPlaylistsStore.contains(settings, item.id)
+            is Track -> LocalSavedTracksStore.contains(settings, item.id)
+            is Album -> LocalSavedAlbumsStore.contains(settings, item.id)
+            is Artist -> LocalSavedArtistsStore.contains(settings, item.id)
+            is Playlist -> LocalSavedPlaylistsStore.contains(settings, item.id)
             else -> false
         }
     }
