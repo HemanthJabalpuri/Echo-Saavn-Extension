@@ -20,7 +20,7 @@ class PlaylistApi : BaseApi() {
     suspend fun getDetails(
         token: String,
         page: Int = 1,
-        count: Int = 100
+        count: Int = 50
     ): JsonObject = executeRequest(
         call = "webapi.get",
         params = mapOf(

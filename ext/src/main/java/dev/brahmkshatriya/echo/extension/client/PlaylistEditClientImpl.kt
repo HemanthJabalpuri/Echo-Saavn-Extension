@@ -111,9 +111,9 @@ class PlaylistEditClientImpl(
             PagedData.Continuous { continuation ->
                 val page = continuation?.toIntOrNull() ?: 2
                 try {
-                    val response = api.playlist.getDetails(token, page = page, count = 100)
+                    val response = api.playlist.getDetails(token, page = page, count = 50)
                     val tracks = parser.playlist.parsePlaylistTracks(response)
-                    val next = if (tracks.size >= 100) (page + 1).toString() else null
+                    val next = if (tracks.size >= 50) (page + 1).toString() else null
                     Page(tracks, next)
                 } catch (e: Exception) {
                     Logger.e("PlaylistClient", "Failed to load tracks page $page", e)
@@ -308,7 +308,7 @@ class PlaylistEditClientImpl(
             throw Exception("Not authorized to edit this playlist")
         }
 
-        val contents = new.joinToString(",") { track ->
+        val contents = new.joinToString("^") { track ->
             "~~${track.id}~${track.extras["language"].orEmpty()}"
         }
 
@@ -373,11 +373,48 @@ class PlaylistEditClientImpl(
         fromIndex: Int,
         toIndex: Int
     ) {
-        if (!Prefixes.isLocal(playlist.id)) {
+        // Local playlist
+        if (Prefixes.isLocal(playlist.id)) {
+            val settings = settings ?: return
+            LocalPlaylistTracksStore.moveTrack(settings, playlist.id, fromIndex, toIndex)
+            Logger.d("PlaylistEdit", "moveTrackInPlaylist (local): ${playlist.id}, $fromIndex -> $toIndex")
+            return
+        }
+
+        // Saavn playlist — must be owned
+        val currentUser = SaavnDependencies.currentUserId
+        val uid = playlist.extras["uid"].orEmpty()
+        if (currentUser == null || uid.isBlank() || uid != currentUser) {
             throw ClientException.NotSupported("moveTrackInPlaylist")
         }
-        val settings = settings ?: return
-        LocalPlaylistTracksStore.moveTrack(settings, playlist.id, fromIndex, toIndex)
-        Logger.d("PlaylistEdit", "moveTrackInPlaylist: ${playlist.id}, $fromIndex -> $toIndex")
+
+        if (fromIndex == toIndex) return
+        if (fromIndex !in tracks.indices || toIndex !in tracks.indices) {
+            Logger.e("PlaylistEdit", "moveTrackInPlaylist: index out of range $fromIndex -> $toIndex (size=${tracks.size})")
+            return
+        }
+
+        val newOrder = tracks.toMutableList()
+        val moved = newOrder.removeAt(fromIndex)
+        newOrder.add(toIndex, moved)
+
+        val minN = maxOf(fromIndex, toIndex) + 1
+        val pageN = ((minN + 49) / 50) * 50
+        val n = minOf(pageN, tracks.size)
+
+        val contents = newOrder.take(n).joinToString("^") { track ->
+            "~~${track.id}~${track.extras["language"].orEmpty()}"
+        }
+
+        Logger.d("PlaylistEdit", "moveTrackInPlaylist (saavn): ${playlist.id}, $fromIndex -> $toIndex, n=$n")
+
+        try {
+            api.playlistEdit.save(playlist.id, n, contents)
+        } finally {
+            cachedPlaylistId = null
+            cachedResponse = null
+            cachedPlaylist = null
+            cachedTracks = null
+        }
     }
 }

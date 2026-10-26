@@ -32,4 +32,14 @@ class PlaylistEditApi : AuthenticatedBaseApi() {
             ),
         )
 
+    suspend fun save(listId: String, n: Int, contents: String): JsonObject =
+        executeAuthed(
+            call = "playlist.save",
+            params = mapOf(
+                "listid" to listId,
+                "n" to n.toString(),
+                "contents" to contents,
+            ),
+        )
+
 }
