@@ -335,12 +335,36 @@ class PlaylistEditClientImpl(
         tracks: List<Track>,
         indexes: List<Int>
     ) {
-        if (!Prefixes.isLocal(playlist.id)) {
+        // Local playlist
+        if (Prefixes.isLocal(playlist.id)) {
+            val settings = settings ?: return
+            LocalPlaylistTracksStore.removeTracks(settings, playlist.id, indexes)
+            Logger.d("PlaylistEdit", "removeTracksFromPlaylist (local): ${playlist.id}, $indexes")
+            return
+        }
+
+        // Saavn playlist — must be owned
+        val currentUser = SaavnDependencies.currentUserId
+        val uid = playlist.extras["uid"].orEmpty()
+        if (currentUser == null || uid.isBlank() || uid != currentUser) {
             throw ClientException.NotSupported("removeTracksFromPlaylist")
         }
-        val settings = settings ?: return
-        LocalPlaylistTracksStore.removeTracks(settings, playlist.id, indexes)
-        Logger.d("PlaylistEdit", "removeTracksFromPlaylist: ${playlist.id}, $indexes")
+
+        val pids = indexes.mapNotNull { idx -> tracks.getOrNull(idx)?.id }.distinct()
+        if (pids.isEmpty()) return
+
+        Logger.d("PlaylistEdit", "removeTracksFromPlaylist (saavn): ${playlist.id}, removing ${pids.size}")
+
+        try {
+            pids.forEach { pid ->
+                api.playlistEdit.remove(playlist.id, pid)
+            }
+        } finally {
+            cachedPlaylistId = null
+            cachedResponse = null
+            cachedPlaylist = null
+            cachedTracks = null
+        }
     }
 
     override suspend fun moveTrackInPlaylist(
