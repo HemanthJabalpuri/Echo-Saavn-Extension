@@ -5,6 +5,7 @@ import dev.brahmkshatriya.echo.common.models.*
 import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeed
 import dev.brahmkshatriya.echo.common.helpers.Page
 import dev.brahmkshatriya.echo.common.helpers.PagedData
+import dev.brahmkshatriya.echo.common.helpers.ClientException
 
 import kotlinx.serialization.json.*
 
@@ -51,7 +52,7 @@ class PlaylistEditClientImpl(
 
         // Cache hit
         if (cachedPlaylistId == playlist.id && cachedPlaylist != null) {
-            return cachedPlaylist!!
+            return applyEditable(cachedPlaylist!!)
         }
 
         // Fetch, parse, cache
@@ -66,7 +67,14 @@ class PlaylistEditClientImpl(
         cachedPlaylist = parsedPlaylist
         cachedTracks = tracks
 
-        return parsedPlaylist
+        return applyEditable(parsedPlaylist)
+    }
+
+    private fun applyEditable(playlist: Playlist): Playlist {
+        val uid = playlist.extras["uid"].orEmpty()
+        val currentUser = SaavnDependencies.currentUserId
+        val editable = currentUser != null && uid.isNotBlank() && uid == currentUser
+        return playlist.copy(isEditable = editable)
     }
 
     // ===== LOAD TRACKS =====
@@ -191,15 +199,48 @@ class PlaylistEditClientImpl(
 
     override suspend fun listEditablePlaylists(track: Track?): List<Pair<Playlist, Boolean>> {
         val settings = settings ?: return emptyList()
-        val playlists = LocalPlaylistStore.getAll(settings).filter { it.isEditable }
-        Logger.d("PlaylistEdit", "listEditablePlaylists: ${playlists.size} editable playlists")
+        val result = mutableListOf<Pair<Playlist, Boolean>>()
 
-        return playlists.map { playlist ->
+        // ---- Local playlists ----
+        val localPlaylists = LocalPlaylistStore.getAll(settings).filter { it.isEditable }
+        localPlaylists.forEach { playlist ->
             val isInPlaylist = track != null &&
                     LocalPlaylistTracksStore.getTracks(settings, playlist.id)
                         .any { it.id == track.id }
-            playlist to isInPlaylist
+            result.add(playlist to isInPlaylist)
         }
+
+        // ---- Saavn playlists (owned by current user) ----
+        val currentUser = SaavnDependencies.currentUserId
+        if (currentUser != null) {
+            try {
+                val response = api.playlistEdit.listMyPlaylists()
+                val rawArray = response["results"]?.jsonArray
+                if (rawArray != null) {
+                    rawArray.forEach { element ->
+                        val obj = element.jsonObject
+                        val parsed = parser.playlist.parsePlaylistToPlaylist(obj) ?: return@forEach
+                        if (parsed.extras["uid"] != currentUser) return@forEach
+
+                        val contentsRaw = obj["more_info"]?.jsonObject
+                            ?.get("contents")?.jsonPrimitive?.contentOrNull
+                            .orEmpty()
+                        val isInPlaylist = track != null &&
+                                contentsRaw.split(",").any { it.trim() == track.id }
+
+                        result.add(parsed.copy(isEditable = true) to isInPlaylist)
+                    }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("PlaylistEdit", "Failed to fetch Saavn playlists", e)
+                // swallow — local playlists still shown
+            }
+        }
+
+        Logger.d("PlaylistEdit", "listEditablePlaylists: ${result.size} total")
+        return result
     }
 
     override suspend fun createPlaylist(title: String, description: String?): Playlist {
@@ -226,6 +267,9 @@ class PlaylistEditClientImpl(
     }
 
     override suspend fun deletePlaylist(playlist: Playlist) {
+        if (!Prefixes.isLocal(playlist.id)) {
+            throw ClientException.NotSupported("deletePlaylist")
+        }
         val settings = settings ?: return
         LocalPlaylistStore.remove(settings, playlist.id)
         LocalPlaylistTracksStore.delete(settings, playlist.id)
@@ -233,6 +277,9 @@ class PlaylistEditClientImpl(
     }
 
     override suspend fun editPlaylistMetadata(playlist: Playlist, title: String, description: String?) {
+        if (!Prefixes.isLocal(playlist.id)) {
+            throw ClientException.NotSupported("editPlaylistMetadata")
+        }
         val settings = settings ?: return
         val updated = playlist.copy(title = title, description = description)
         LocalPlaylistStore.add(settings, updated)
@@ -245,9 +292,42 @@ class PlaylistEditClientImpl(
         index: Int,
         new: List<Track>
     ) {
-        val settings = settings ?: return
-        LocalPlaylistTracksStore.addTracks(settings, playlist.id, new, index)
-        Logger.d("PlaylistEdit", "addTracksToPlaylist: ${playlist.id}, +${new.size} at $index")
+        // Local playlist — existing behavior
+        if (Prefixes.isLocal(playlist.id)) {
+            val settings = settings ?: return
+            LocalPlaylistTracksStore.addTracks(settings, playlist.id, new, index)
+            Logger.d("PlaylistEdit", "addTracksToPlaylist (local): ${playlist.id}, +${new.size} at $index")
+            return
+        }
+
+        // Saavn playlist
+
+        val currentUser = SaavnDependencies.currentUserId
+        val uid = playlist.extras["uid"].orEmpty()
+        if (currentUser == null || uid.isBlank() || uid != currentUser) {
+            throw Exception("Not authorized to edit this playlist")
+        }
+
+        val contents = new.joinToString(",") { track ->
+            "~~${track.id}~${track.extras["language"].orEmpty()}"
+        }
+
+        Logger.d("PlaylistEdit", "addTracksToPlaylist (saavn): ${playlist.id}, +${new.size}")
+
+        val response = api.playlistEdit.add(playlist.id, contents)
+
+        val status = response["status"]?.jsonPrimitive?.contentOrNull
+        if (status != "ok") {
+            throw Exception("playlist.add failed: status=$status")
+        }
+
+        // Invalidate cache so next open re-fetches with the new tracks
+        cachedPlaylistId = null
+        cachedResponse = null
+        cachedPlaylist = null
+        cachedTracks = null
+
+        Logger.d("PlaylistEdit", "addTracksToPlaylist (saavn): success, cache invalidated")
     }
 
     override suspend fun removeTracksFromPlaylist(
@@ -255,6 +335,9 @@ class PlaylistEditClientImpl(
         tracks: List<Track>,
         indexes: List<Int>
     ) {
+        if (!Prefixes.isLocal(playlist.id)) {
+            throw ClientException.NotSupported("removeTracksFromPlaylist")
+        }
         val settings = settings ?: return
         LocalPlaylistTracksStore.removeTracks(settings, playlist.id, indexes)
         Logger.d("PlaylistEdit", "removeTracksFromPlaylist: ${playlist.id}, $indexes")
@@ -266,6 +349,9 @@ class PlaylistEditClientImpl(
         fromIndex: Int,
         toIndex: Int
     ) {
+        if (!Prefixes.isLocal(playlist.id)) {
+            throw ClientException.NotSupported("moveTrackInPlaylist")
+        }
         val settings = settings ?: return
         LocalPlaylistTracksStore.moveTrack(settings, playlist.id, fromIndex, toIndex)
         Logger.d("PlaylistEdit", "moveTrackInPlaylist: ${playlist.id}, $fromIndex -> $toIndex")

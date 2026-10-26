@@ -20,6 +20,7 @@ class PlaylistParser(
 
         val image = obj["image"]?.jsonPrimitive?.content ?: ""
         val songCount = obj["list_count"]?.jsonPrimitive?.content ?: "0"
+        val moreInfo = obj["more_info"]?.jsonObject
 
         return Playlist(
             id = id,
@@ -33,6 +34,7 @@ class PlaylistParser(
             isRadioSupported = false,
             extras = mapOf(
                 Extras.PERMA_URL to (obj["perma_url"]?.jsonPrimitive?.content ?: ""),
+                "uid" to (moreInfo?.get("uid")?.jsonPrimitive?.content ?: ""),
             )
         )
     }

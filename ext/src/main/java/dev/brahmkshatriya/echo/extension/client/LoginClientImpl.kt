@@ -36,6 +36,7 @@ class LoginClientImpl : LoginClient.WebView {
 
                 // Store cookie
                 SaavnDependencies.sessionCookie = cookie
+                SaavnDependencies.currentUserId = user.id
                 Logger.d("LoginClient", "Login successful for user: ${user.name}")
 
                 return listOf(user)
@@ -90,11 +91,13 @@ class LoginClientImpl : LoginClient.WebView {
             // Logout
             Logger.d("LoginClient", "setLoginUser(null) — logging out")
             SaavnDependencies.sessionCookie = null
+            SaavnDependencies.currentUserId = null
         } else {
             // Restore session from user extras (e.g., on app restart)
             val cookie = user.extras["cookie"]
             Logger.d("LoginClient", "setLoginUser: ${user.name}, cookie=${cookie != null}")
             SaavnDependencies.sessionCookie = cookie
+            SaavnDependencies.currentUserId = user.id
         }
     }
 

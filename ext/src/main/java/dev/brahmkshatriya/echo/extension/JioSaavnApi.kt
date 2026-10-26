@@ -13,4 +13,5 @@ class JioSaavnApi {
     val auth = AuthApi()
     val library = LibraryApi()
     val follow = FollowApi()
+    val playlistEdit = PlaylistEditApi()
 }

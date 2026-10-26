@@ -49,6 +49,7 @@ object SaavnDependencies {
 
 
     var sessionCookie: String? = null
+    var currentUserId: String? = null
 
 }
 

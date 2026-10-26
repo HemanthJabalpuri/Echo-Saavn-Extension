@@ -75,6 +75,7 @@ class TrackParser : BaseParser() {
                 "composer" to (moreInfo?.get("music")?.jsonPrimitive?.content ?: ""),
                 "year" to (obj["year"]?.jsonPrimitive?.content ?: ""),
                 "release_date_raw" to (moreInfo?.get("release_date")?.jsonPrimitive?.content ?: ""),
+                "language" to (obj["language"]?.jsonPrimitive?.content ?: ""),
             ),
             streamables = streamables
         )
