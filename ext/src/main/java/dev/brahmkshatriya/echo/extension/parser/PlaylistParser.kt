@@ -35,6 +35,7 @@ class PlaylistParser(
             extras = mapOf(
                 Extras.PERMA_URL to (obj["perma_url"]?.jsonPrimitive?.content ?: ""),
                 "uid" to (moreInfo?.get("uid")?.jsonPrimitive?.content ?: ""),
+                "contents" to (moreInfo?.get("contents")?.jsonPrimitive?.contentOrNull ?: ""),
             )
         )
     }

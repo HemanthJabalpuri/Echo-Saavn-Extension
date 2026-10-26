@@ -60,16 +60,6 @@ class LibraryFeedClientImpl(
                 id = Prefixes.LIKED_PLAYLIST_ID,
                 title = "Liked Songs",
                 isEditable = false,
-                isPrivate = false,
-                description = null,
-                creationDate = null,
-                cover = null,
-                authors = emptyList(),
-                trackCount = 0,
-                duration = null,
-                background = null,
-                subtitle = null,
-                extras = emptyMap(),
             ))
         }
     }

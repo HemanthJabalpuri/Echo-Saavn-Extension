@@ -6,6 +6,7 @@ import dev.brahmkshatriya.echo.common.models.Feed.Companion.toFeed
 import dev.brahmkshatriya.echo.common.helpers.Page
 import dev.brahmkshatriya.echo.common.helpers.PagedData
 import dev.brahmkshatriya.echo.common.helpers.ClientException
+import dev.brahmkshatriya.echo.common.settings.Settings
 
 import kotlinx.serialization.json.*
 
@@ -70,10 +71,20 @@ class PlaylistEditClientImpl(
         return applyEditable(parsedPlaylist)
     }
 
-    private fun applyEditable(playlist: Playlist): Playlist {
+    private fun isOwnedByCurrentUser(playlist: Playlist): Boolean {
+        val currentUser = SaavnDependencies.currentUserId ?: return false
         val uid = playlist.extras["uid"].orEmpty()
-        val currentUser = SaavnDependencies.currentUserId
-        val editable = currentUser != null && uid.isNotBlank() && uid == currentUser
+        return uid.isNotBlank() && uid == currentUser
+    }
+
+    private fun requireOwned(playlist: Playlist, operation: String) {
+        if (!isOwnedByCurrentUser(playlist)) {
+            throw ClientException.NotSupported(operation)
+        }
+    }
+
+    private fun applyEditable(playlist: Playlist): Playlist {
+        val editable = isOwnedByCurrentUser(playlist)
         return playlist.copy(isEditable = editable)
     }
 
@@ -199,48 +210,51 @@ class PlaylistEditClientImpl(
 
     override suspend fun listEditablePlaylists(track: Track?): List<Pair<Playlist, Boolean>> {
         val settings = settings ?: return emptyList()
-        val result = mutableListOf<Pair<Playlist, Boolean>>()
 
-        // ---- Local playlists ----
-        val localPlaylists = LocalPlaylistStore.getAll(settings).filter { it.isEditable }
-        localPlaylists.forEach { playlist ->
-            val isInPlaylist = track != null &&
-                    LocalPlaylistTracksStore.getTracks(settings, playlist.id)
-                        .any { it.id == track.id }
-            result.add(playlist to isInPlaylist)
-        }
-
-        // ---- Saavn playlists (owned by current user) ----
-        val currentUser = SaavnDependencies.currentUserId
-        if (currentUser != null) {
-            try {
-                val response = api.playlistEdit.listMyPlaylists()
-                val rawArray = response["results"]?.jsonArray
-                if (rawArray != null) {
-                    rawArray.forEach { element ->
-                        val obj = element.jsonObject
-                        val parsed = parser.playlist.parsePlaylistToPlaylist(obj) ?: return@forEach
-                        if (parsed.extras["uid"] != currentUser) return@forEach
-
-                        val contentsRaw = obj["more_info"]?.jsonObject
-                            ?.get("contents")?.jsonPrimitive?.contentOrNull
-                            .orEmpty()
-                        val isInPlaylist = track != null &&
-                                contentsRaw.split(",").any { it.trim() == track.id }
-
-                        result.add(parsed.copy(isEditable = true) to isInPlaylist)
-                    }
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Logger.e("PlaylistEdit", "Failed to fetch Saavn playlists", e)
-                // swallow — local playlists still shown
-            }
+        val result = buildList {
+            addAll(loadLocalEditablePlaylists(settings, track))
+            addAll(loadSaavnEditablePlaylists(track))
         }
 
         Logger.d("PlaylistEdit", "listEditablePlaylists: ${result.size} total")
         return result
+    }
+
+    private fun loadLocalEditablePlaylists(
+        settings: Settings,
+        track: Track?,
+    ): List<Pair<Playlist, Boolean>> =
+        LocalPlaylistStore.getAll(settings)
+            .filter { it.isEditable }
+            .map { playlist ->
+                val contains = track != null &&
+                        LocalPlaylistTracksStore.getTracks(settings, playlist.id)
+                            .any { it.id == track.id }
+                playlist to contains
+            }
+
+    private suspend fun loadSaavnEditablePlaylists(
+        track: Track?,
+    ): List<Pair<Playlist, Boolean>> {
+        val currentUser = SaavnDependencies.currentUserId ?: return emptyList()
+
+        return try {
+            val response = api.playlistEdit.listMyPlaylists()
+            parser.playlist.parsePlaylistResults(response)
+                // uid filter maybe unnecessary
+                .filter { it.extras["uid"] == currentUser }
+                .map { playlist ->
+                    val contents = playlist.extras["contents"].orEmpty()
+                    val contains = track != null &&
+                            contents.split(",").any { it.trim() == track.id }
+                    playlist.copy(isEditable = true) to contains
+                }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logger.e("PlaylistEdit", "Failed to fetch Saavn playlists", e)
+            emptyList()
+        }
     }
 
     override suspend fun createPlaylist(title: String, description: String?): Playlist {
@@ -249,16 +263,8 @@ class PlaylistEditClientImpl(
             id = Prefixes.newLocalId(),
             title = title,
             isEditable = true,
-            isPrivate = false,
             description = description,
             creationDate = Date(System.currentTimeMillis()),
-            cover = null,
-            authors = emptyList(),
-            trackCount = 0,
-            duration = null,
-            background = null,
-            subtitle = null,
-            extras = emptyMap()
         )
         LocalPlaylistStore.add(settings, playlist)
         LocalPlaylistTracksStore.setTracks(settings, playlist.id, emptyList())
@@ -286,6 +292,18 @@ class PlaylistEditClientImpl(
         Logger.d("PlaylistEdit", "editPlaylistMetadata: ${playlist.id} -> $title")
     }
 
+    private fun encodeTracks(tracks: List<Track>): String =
+        tracks.joinToString("^") { track ->
+            "~~${track.id}~${track.extras["language"].orEmpty()}"
+        }
+
+    private fun invalidateCache() {
+        cachedPlaylistId = null
+        cachedResponse = null
+        cachedPlaylist = null
+        cachedTracks = null
+    }
+
     override suspend fun addTracksToPlaylist(
         playlist: Playlist,
         tracks: List<Track>,
@@ -301,20 +319,11 @@ class PlaylistEditClientImpl(
         }
 
         // Saavn playlist
-
-        val currentUser = SaavnDependencies.currentUserId
-        val uid = playlist.extras["uid"].orEmpty()
-        if (currentUser == null || uid.isBlank() || uid != currentUser) {
-            throw Exception("Not authorized to edit this playlist")
-        }
-
-        val contents = new.joinToString("^") { track ->
-            "~~${track.id}~${track.extras["language"].orEmpty()}"
-        }
+        requireOwned(playlist, "Not authorized to edit this playlist")
 
         Logger.d("PlaylistEdit", "addTracksToPlaylist (saavn): ${playlist.id}, +${new.size}")
 
-        val response = api.playlistEdit.add(playlist.id, contents)
+        val response = api.playlistEdit.add(playlist.id, encodeTracks(new))
 
         val status = response["status"]?.jsonPrimitive?.contentOrNull
         if (status != "ok") {
@@ -322,10 +331,7 @@ class PlaylistEditClientImpl(
         }
 
         // Invalidate cache so next open re-fetches with the new tracks
-        cachedPlaylistId = null
-        cachedResponse = null
-        cachedPlaylist = null
-        cachedTracks = null
+        invalidateCache()
 
         Logger.d("PlaylistEdit", "addTracksToPlaylist (saavn): success, cache invalidated")
     }
@@ -344,11 +350,7 @@ class PlaylistEditClientImpl(
         }
 
         // Saavn playlist — must be owned
-        val currentUser = SaavnDependencies.currentUserId
-        val uid = playlist.extras["uid"].orEmpty()
-        if (currentUser == null || uid.isBlank() || uid != currentUser) {
-            throw ClientException.NotSupported("removeTracksFromPlaylist")
-        }
+        requireOwned(playlist, "removeTracksFromPlaylist")
 
         val pids = indexes.mapNotNull { idx -> tracks.getOrNull(idx)?.id }.distinct()
         if (pids.isEmpty()) return
@@ -360,10 +362,7 @@ class PlaylistEditClientImpl(
                 api.playlistEdit.remove(playlist.id, pid)
             }
         } finally {
-            cachedPlaylistId = null
-            cachedResponse = null
-            cachedPlaylist = null
-            cachedTracks = null
+            invalidateCache()
         }
     }
 
@@ -382,11 +381,7 @@ class PlaylistEditClientImpl(
         }
 
         // Saavn playlist — must be owned
-        val currentUser = SaavnDependencies.currentUserId
-        val uid = playlist.extras["uid"].orEmpty()
-        if (currentUser == null || uid.isBlank() || uid != currentUser) {
-            throw ClientException.NotSupported("moveTrackInPlaylist")
-        }
+        requireOwned(playlist, "moveTrackInPlaylist")
 
         if (fromIndex == toIndex) return
         if (fromIndex !in tracks.indices || toIndex !in tracks.indices) {
@@ -402,19 +397,14 @@ class PlaylistEditClientImpl(
         val pageN = ((minN + 49) / 50) * 50
         val n = minOf(pageN, tracks.size)
 
-        val contents = newOrder.take(n).joinToString("^") { track ->
-            "~~${track.id}~${track.extras["language"].orEmpty()}"
-        }
+        val contents = encodeTracks(newOrder.take(n))
 
         Logger.d("PlaylistEdit", "moveTrackInPlaylist (saavn): ${playlist.id}, $fromIndex -> $toIndex, n=$n")
 
         try {
             api.playlistEdit.save(playlist.id, n, contents)
         } finally {
-            cachedPlaylistId = null
-            cachedResponse = null
-            cachedPlaylist = null
-            cachedTracks = null
+            invalidateCache()
         }
     }
 }
