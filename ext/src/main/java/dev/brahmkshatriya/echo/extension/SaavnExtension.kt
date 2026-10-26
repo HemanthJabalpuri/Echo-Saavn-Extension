@@ -64,7 +64,8 @@ class SaavnExtension : ExtensionClient,
     TrackerClient,
     LikeClient by LikeClientImpl(),
     ShareClient by ShareClientImpl(SaavnDependencies.api, SaavnDependencies.parser),
-    LoginClient.WebView by LoginClientImpl() {
+    LoginClient.WebView by LoginClientImpl(),
+    FollowClient by FollowClientImpl(SaavnDependencies.api) {
 
     private lateinit var settings: Settings
 

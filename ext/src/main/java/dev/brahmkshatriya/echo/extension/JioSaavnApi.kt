@@ -12,4 +12,5 @@ class JioSaavnApi {
     val search = SearchApi()
     val auth = AuthApi()
     val library = LibraryApi()
+    val follow = FollowApi()
 }
