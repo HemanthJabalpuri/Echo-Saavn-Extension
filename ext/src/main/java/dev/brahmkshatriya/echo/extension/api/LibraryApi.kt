@@ -27,4 +27,22 @@ class LibraryApi : AuthenticatedBaseApi() {
         )
     }
 
+    suspend fun add(entityId: String, entityType: String): JsonObject =
+        executeAuthed(
+            call = "library.add",
+            params = mapOf(
+                "entity_ids" to entityId,
+                "entity_type" to entityType,
+            ),
+        )
+
+    suspend fun delete(entityId: String, entityType: String): JsonObject =
+        executeAuthed(
+            call = "library.delete",
+            params = mapOf(
+                "entity_ids" to entityId,
+                "entity_type" to entityType,
+            ),
+        )
+
 }

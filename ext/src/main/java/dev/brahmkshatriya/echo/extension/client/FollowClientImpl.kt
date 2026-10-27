@@ -4,6 +4,7 @@ import dev.brahmkshatriya.echo.common.clients.FollowClient
 import dev.brahmkshatriya.echo.common.models.Artist
 import dev.brahmkshatriya.echo.common.models.EchoMediaItem
 import dev.brahmkshatriya.echo.common.models.Playlist
+import dev.brahmkshatriya.echo.common.helpers.ClientException
 
 import kotlinx.serialization.json.*
 
@@ -50,6 +51,8 @@ class FollowClientImpl(
             if (shouldFollow) api.follow.follow(id, type)
             else api.follow.unfollow(id, type)
             Logger.d("FollowClient", "${if (shouldFollow) "Followed" else "Unfollowed"} $type/$id")
+        } catch (e: ClientException) {
+            throw e
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
