@@ -128,7 +128,7 @@ class TrackClientImpl(
 
             // ===== OTHER ARTISTS SHELF =====
             val otherArtists = parser.artist.parseOtherArtistsFromExtras(
-                track.extras[Extras.OTHER_ARTISTS]
+                track.extras[Extras.ARTIST_MAP]
             )
             if (otherArtists.isNotEmpty()) {
                 shelves.add(

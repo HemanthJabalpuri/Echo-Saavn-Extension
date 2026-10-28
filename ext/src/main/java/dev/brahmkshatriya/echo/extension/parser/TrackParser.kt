@@ -70,7 +70,7 @@ class TrackParser : BaseParser() {
             subtitle = decodeHtml(obj["subtitle"]?.jsonPrimitive?.content ?: ""),
             extras = mapOf(
                 Extras.PERMA_URL to (obj["perma_url"]?.jsonPrimitive?.content ?: ""),
-                Extras.OTHER_ARTISTS to (artistMap?.toString() ?: "{}"),
+                Extras.ARTIST_MAP to (artistMap?.toString() ?: "{}"),
                 "hasLyrics" to (moreInfo?.get("has_lyrics")?.jsonPrimitive?.content ?: "false"),
                 "composer" to (moreInfo?.get("music")?.jsonPrimitive?.content ?: ""),
                 "year" to (obj["year"]?.jsonPrimitive?.content ?: ""),

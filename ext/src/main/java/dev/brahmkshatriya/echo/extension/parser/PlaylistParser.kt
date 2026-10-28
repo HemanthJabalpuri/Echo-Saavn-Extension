@@ -70,4 +70,7 @@ class PlaylistParser(
             .mapNotNull { parseArtistFromJson(it.jsonObject) }
     }
 
+    fun parseTrendingLanguage(response: JsonObject): String? =
+        parseModuleLanguage(response, "currentlyTrendingPlaylists")
+
 }

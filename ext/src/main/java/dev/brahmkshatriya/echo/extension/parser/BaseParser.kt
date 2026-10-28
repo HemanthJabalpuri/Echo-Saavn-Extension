@@ -107,4 +107,10 @@ open class BaseParser {
         }
     }
 
+    protected fun parseModuleLanguage(response: JsonObject, moduleKey: String): String? =
+        response["modules"]?.jsonObject
+            ?.get(moduleKey)?.jsonObject
+            ?.get("source_params")?.jsonObject
+            ?.get("entity_language")?.jsonPrimitive?.contentOrNull
+
 }

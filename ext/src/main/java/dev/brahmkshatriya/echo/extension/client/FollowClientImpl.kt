@@ -6,35 +6,29 @@ import dev.brahmkshatriya.echo.common.models.EchoMediaItem
 import dev.brahmkshatriya.echo.common.models.Playlist
 import dev.brahmkshatriya.echo.common.helpers.ClientException
 
-import kotlinx.serialization.json.*
-
 import dev.brahmkshatriya.echo.extension.JioSaavnApi
+import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.utils.Logger
+import dev.brahmkshatriya.echo.extension.utils.requireSuccess
 
 class FollowClientImpl(
     private val api: JioSaavnApi,
+    private val parser: JioSaavnParser,
 ) : FollowClient {
 
     override suspend fun isFollowing(item: EchoMediaItem): Boolean {
-        val type = when (item) {
-            is Artist -> "artist"
-            is Playlist -> "playlist"
-            else -> return false
-        }
         return try {
             val library = api.library.getAll()
-            val entries = library[type]?.jsonArray ?: return false
-            when (type) {
-                "artist" -> entries.any { it.jsonPrimitive.contentOrNull == item.id }
-                "playlist" -> entries.any {
-                    it.jsonObject["id"]?.jsonPrimitive?.contentOrNull == item.id
-                }
-                else -> false
+            val followedIds = when (item) {
+                is Artist -> parser.library.parseArtistIds(library)
+                is Playlist -> parser.library.parsePlaylistIds(library)
+                else -> return false
             }
+            item.id in followedIds
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            Logger.e("FollowClient", "Failed to check follow status for $type/${item.id}", e)
+            Logger.e("FollowClient", "Failed to check follow status for ${item.id}", e)
             false
         }
     }
@@ -48,9 +42,9 @@ class FollowClientImpl(
             else -> return
         }
         try {
-            if (shouldFollow) api.follow.follow(id, type)
-            else api.follow.unfollow(id, type)
-            Logger.d("FollowClient", "${if (shouldFollow) "Followed" else "Unfollowed"} $type/$id")
+            val response = if (shouldFollow) api.follow.follow(id, type)
+                           else api.follow.unfollow(id, type)
+            response.requireSuccess("social.${if (shouldFollow) "follow" else "unfollow"}")
         } catch (e: ClientException) {
             throw e
         } catch (e: kotlinx.coroutines.CancellationException) {

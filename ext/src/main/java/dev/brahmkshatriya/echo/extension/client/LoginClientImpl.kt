@@ -78,6 +78,8 @@ class LoginClientImpl : LoginClient.WebView {
                 subtitle = email.ifBlank { null },
                 extras = mapOf("cookie" to cookie)
             )
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.e("LoginClient", "Failed to verify login", e)
             null
@@ -103,6 +105,6 @@ class LoginClientImpl : LoginClient.WebView {
 
     override suspend fun getCurrentUser(): User? {
         val cookie = SaavnDependencies.sessionCookie ?: return null
-        return verifyLogin(cookie)
+        return verifyLogin(cookie)?.copy(extras = emptyMap())
     }
 }

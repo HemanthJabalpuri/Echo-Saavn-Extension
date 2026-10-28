@@ -15,8 +15,6 @@ import dev.brahmkshatriya.echo.common.models.Playlist
 import dev.brahmkshatriya.echo.common.settings.Settings
 import dev.brahmkshatriya.echo.common.helpers.ClientException
 
-import kotlinx.serialization.json.*
-
 import dev.brahmkshatriya.echo.extension.JioSaavnApi
 import dev.brahmkshatriya.echo.extension.JioSaavnParser
 import dev.brahmkshatriya.echo.extension.SaavnDependencies
@@ -175,8 +173,7 @@ class LibraryFeedClientImpl(
         )?.let(shelves::add)
 
         // ---- Playlists ----
-        val playlistEntries = parser.library.parsePlaylistEntries(library).asReversed()
-        val playlistIds = playlistEntries.map { it.id }
+        val playlistIds = parser.library.parsePlaylistIds(library).asReversed()
         paginatedShelf(
             shelfId = "saavn_playlists",
             shelfTitle = "Playlists",

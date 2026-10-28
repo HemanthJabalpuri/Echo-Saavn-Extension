@@ -19,6 +19,7 @@ import dev.brahmkshatriya.echo.extension.storage.LocalSavedTracksStore
 import dev.brahmkshatriya.echo.extension.storage.Prefixes
 import dev.brahmkshatriya.echo.extension.utils.Logger
 import dev.brahmkshatriya.echo.extension.utils.getToken
+import dev.brahmkshatriya.echo.extension.utils.requireSuccess
 
 class PlaylistEditClientImpl(
     private val api: JioSaavnApi,
@@ -163,10 +164,7 @@ class PlaylistEditClientImpl(
         }
 
         // ===== TRENDING PLAYLISTS SHELF =====
-        val language = response["modules"]?.jsonObject
-            ?.get("currentlyTrendingPlaylists")?.jsonObject
-            ?.get("source_params")?.jsonObject
-            ?.get("entity_language")?.jsonPrimitive?.content
+        val language = parser.playlist.parseTrendingLanguage(response)
 
         if (!language.isNullOrBlank()) {
             try {
@@ -325,10 +323,7 @@ class PlaylistEditClientImpl(
 
         val response = api.playlistEdit.add(playlist.id, encodeTracks(new))
 
-        val status = response["status"]?.jsonPrimitive?.contentOrNull
-        if (status != "ok") {
-            throw Exception("playlist.add failed: status=$status")
-        }
+        response.requireSuccess("playlist.add")
 
         // Invalidate cache so next open re-fetches with the new tracks
         invalidateCache()
