@@ -1,6 +1,7 @@
 package dev.brahmkshatriya.echo.extension.api
 
 import dev.brahmkshatriya.echo.common.helpers.ContinuationCallback.Companion.await
+
 import kotlinx.serialization.json.*
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -12,6 +13,7 @@ import dev.brahmkshatriya.echo.extension.utils.Logger
 open class BaseApi {
 
     protected open val defaultCtx: String = "web6dot0"
+    protected open val defaultApiVersion: String? = "4"
 
     protected val json = Json {
         ignoreUnknownKeys = true
@@ -35,14 +37,16 @@ open class BaseApi {
     protected suspend fun executeRequest(
         call: String,
         params: Map<String, String> = emptyMap(),
-        headers: Map<String, String> = emptyMap()
+        headers: Map<String, String> = emptyMap(),
+        apiVersion: String? = defaultApiVersion,
     ): JsonObject {
-        val allParams = mapOf(
-            "_format" to "json",
-            "_marker" to "0",
-            "api_version" to "4",
-            "ctx" to defaultCtx
-        ) + params
+        val baseParams = buildMap {
+            put("_format", "json")
+            put("_marker", "0")
+            if (apiVersion != null) put("api_version", apiVersion)
+            put("ctx", defaultCtx)
+        }
+        val allParams = baseParams + params
 
         val queryString = allParams.entries.joinToString("&") { (key, value) ->
             "$key=${URLEncoder.encode(value, "UTF-8")}"
